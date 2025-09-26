@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣水庫即時監控系統</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- 自定義樣式 -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    
+    <!-- Meta tags -->
+    <meta name="description" content="台灣水庫即時監控系統 - 提供全台主要水庫的即時蓄水情況、統計資料和視覺化圖表。響應式設計，支援各種設備。">
+    <meta name="keywords" content="台灣水庫, 蓄水率, 水資源, 即時監控, 水利署, 水情, 缺水, 防災">
+    <meta name="author" content="Jiaquan">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="zh-TW">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="台灣水庫即時監控系統">
+    <meta property="og:description" content="即時監控全台主要水庫蓄水情況，提供清晰的數據視覺化和預警資訊">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/livejiaquan010313/taiwan-reservoir-static">
+    <meta property="og:image" content="https://github.com/livejiaquan010313/taiwan-reservoir-static/preview.jpg">
+    <meta property="og:locale" content="zh_TW">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="台灣水庫即時監控系統">
+    <meta name="twitter:description" content="即時監控全台主要水庫蓄水情況">
+    <meta name="twitter:image" content="https://github.com/livejiaquan010313/taiwan-reservoir-static/preview.jpg">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+</head>
+<body>
+    <!-- 載入畫面 -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-container">
+            <div class="water-drop-loader">
+                <div class="drop"></div>
+                <div class="wave"></div>
+            </div>
+            <h3>載入中...</h3>
+            <p>正在獲取最新水庫資料</p>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div id="main-container" class="main-container hidden">
+        <!-- 頁面標題區域 -->
+        <header class="header-section">
+            <div class="container">
+                <div class="title-container">
+                    <h1 class="main-title">
+                        <i class="bi bi-droplet-fill water-icon"></i>
+                        台灣水庫即時監控系統
+                    </h1>
+                    <p class="subtitle">Taiwan Reservoir Real-time Monitoring System</p>
+                    <div class="update-info">
+                        <i class="bi bi-clock"></i>
+                        <span>最後更新：</span>
+                        <span id="last-update-time">--</span>
+                        <button id="refresh-btn" class="refresh-btn" title="立即更新">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 統計卡片區域 -->
+        <section class="stats-section">
+            <div class="container">
+                <div class="stats-grid" id="stats-grid">
+                    <!-- 統計卡片將由 JavaScript 動態生成 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 總覽圖表區域 -->
+        <section class="overview-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>
+                        <i class="bi bi-bar-chart-fill"></i>
+                        全台水庫蓄水率總覽
+                    </h2>
+                    <p>各大水庫蓄水情況一覽</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="overview-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 地區分類區域 -->
+        <section class="regions-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>
+                        <i class="bi bi-geo-alt-fill"></i>
+                        各地區水庫詳情
+                    </h2>
+                    <p>依縣市分類顯示水庫資訊</p>
+                </div>
+                
+                <!-- 地區選擇器 -->
+                <div class="region-selector">
+                    <button class="region-btn active" data-region="all">全部</button>
+                    <button class="region-btn" data-region="north">北部</button>
+                    <button class="region-btn" data-region="central">中部</button>
+                    <button class="region-btn" data-region="south">南部</button>
+                    <button class="region-btn" data-region="east">東部</button>
+                </div>
+                
+                <!-- 水庫卡片網格 -->
+                <div class="reservoirs-grid" id="reservoirs-grid">
+                    <!-- 水庫卡片將由 JavaScript 動態生成 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 預警資訊區域 -->
+        <section class="alerts-section" id="alerts-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        水情預警
+                    </h2>
+                    <p>需要關注的水庫狀況</p>
+                </div>
+                <div class="alerts-container" id="alerts-container">
+                    <!-- 預警卡片將由 JavaScript 動態生成 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 頁尾 -->
+        <footer class="footer-section">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-info">
+                        <h4>台灣水庫即時監控系統</h4>
+                        <p>Taiwan Reservoir Real-time Monitoring System</p>
+                        <p>資料來源：經濟部水利署開放資料平臺</p>
+                        <p>更新頻率：每5分鐘自動更新</p>
+                        <div class="data-disclaimer">
+                            <p><small>⚠️ 本系統資料僅供參考，實際狀況請以官方公告為準</small></p>
+                        </div>
+                    </div>
+                    <div class="footer-links">
+                        <h5>相關連結</h5>
+                        <ul>
+                            <li><a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">水利署官網</a></li>
+                            <li><a href="https://fhy.wra.gov.tw/" target="_blank" rel="noopener">防災資訊網</a></li>
+                            <li><a href="https://data.gov.tw/" target="_blank" rel="noopener">政府開放資料平臺</a></li>
+                            <li><a href="https://www.cwb.gov.tw/" target="_blank" rel="noopener">中央氣象局</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-tech">
+                        <h5>技術資訊</h5>
+                        <p>🚀 HTML5 + CSS3 + JavaScript</p>
+                        <p>📱 響應式設計，支援各種設備</p>
+                        <p>📊 Chart.js 數據視覺化</p>
+                        <p>🎨 Bootstrap Icons 圖標庫</p>
+                        <div class="version-info">
+                            <p><small>版本 v1.0.0 | 最後更新：2025年1月</small></p>
+                        </div>
+                    </div>
+                    <div class="footer-contact">
+                        <h5>關於專案</h5>
+                        <p>此專案為開源學習項目</p>
+                        <p>如有問題或建議，歡迎聯繫：</p>
+                        <div class="contact-info">
+                            <p>📧 livejiaquan010313@gmail.com</p>
+                            <p>🐙 <a href="https://github.com/livejiaquan010313/taiwan-reservoir-static" target="_blank" rel="noopener">GitHub Repository</a></p>
+                        </div>
+                        <div class="privacy-info">
+                            <p><small>🔒 本站不收集個人資料，僅使用localStorage快取</small></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <div class="copyright">
+                        <p>&copy; 2025 Taiwan Reservoir Monitor. 本專案採用 MIT License 授權.</p>
+                    </div>
+                    <div class="footer-meta">
+                        <p>
+                            <span>🌊 為台灣水資源監控盡一份心力</span> |
+                            <span>Made with ❤️ in Taiwan</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 回到頂部按鈕 -->
+    <button id="scroll-to-top" class="scroll-to-top" title="回到頂部">
+        <i class="bi bi-chevron-up"></i>
+    </button>
+
+    <!-- JavaScript 模組 -->
+    <script src="data/mock-data.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
