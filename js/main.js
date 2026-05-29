@@ -353,30 +353,13 @@ class ReservoirApp extends Utils.EventEmitter {
                     <div class="reservoir-card-body">
                         <!-- 進度條區域 -->
                         <div class="progress-section">
-                            <div class="progress-visual">
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar" 
-                                         style="width: ${progressWidth}%; background-color: ${color};">
-                                    </div>
-                                </div>
-                                <div class="progress-labels">
-                                    <span>0%</span>
-                                    <span>100%</span>
-                                </div>
-                            </div>
-                            <div class="progress-info">
-                                <div class="progress-main">
-                                    <div class="progress-value">${reservoir.percentage.toFixed(1)}</div>
-                                    <div class="progress-unit">%</div>
-                                </div>
-                                <div class="progress-status" style="background-color: ${statusBgColor}; color: ${statusTextColor};">
-                                    ${status}
-                                </div>
-                                <div class="water-level-indicator">
-                                    <span style="font-size: var(--text-xs); color: var(--text-muted);">水位</span>
-                                    <div class="water-drops">
-                                        ${waterDrops}
-                                    </div>
+                            <div class="water-bar" style="--progress-width: ${progressWidth}%; --progress-color: ${color}; --progress-soft: ${statusBgColor};">
+                                <div class="water-bar-fill"></div>
+                                <div class="water-bar-wave"></div>
+                                <div class="water-bar-shine"></div>
+                                <div class="water-bar-content">
+                                    <strong>${reservoir.percentage.toFixed(1)}<span>%</span></strong>
+                                    <small>${status}</small>
                                 </div>
                             </div>
                         </div>
