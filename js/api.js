@@ -241,15 +241,22 @@ class ReservoirAPI extends Utils.EventEmitter {
                         realtimeResponse.json(),
                         dailyResponse.json()
                     ]);
-                    return this.parseOpenData(realtimeData, dailyData);
+                    const parsedData = this.parseOpenData(realtimeData, dailyData);
+
+                    // A successful HTTP response can still carry an incomplete
+                    // upstream snapshot. Treat it as retryable instead of
+                    // immediately replacing the dashboard with mock data.
+                    if (Object.keys(parsedData).length === 0) {
+                        throw new Error('開放資料暫時未包含可用水庫資料');
+                    }
+
+                    return parsedData;
                 });
-                
-                if (Object.keys(data).length > 0) {
-                    console.log(`成功從水利署開放資料 API 獲取 ${Object.keys(data).length} 座水庫資料`);
-                    this.saveCache(data);
-                    this.emit('fetchSuccess', data);
-                    return data;
-                }
+
+                console.log(`成功從水利署開放資料 API 獲取 ${Object.keys(data).length} 座水庫資料`);
+                this.saveCache(data);
+                this.emit('fetchSuccess', data);
+                return data;
             } catch (error) {
                 console.warn('水利署開放資料 API 失敗:', error.message);
             }
