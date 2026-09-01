@@ -3,22 +3,23 @@ class ReservoirAPI extends Utils.EventEmitter {
     constructor() {
         super();
         
-        // API 端點
+        // 水利署開放資料 API。這兩個端點允許瀏覽器跨網域 GET，
+        // 適用於 GitHub Pages 之類的純靜態網站。
         this.endpoints = {
-            primary: 'https://fhy.wra.gov.tw/WraApi/v1/Reservoir/RealTimeInfo',
-            backup: 'https://fhy.wra.gov.tw/ReservoirPage_2011/StorageCapacity.aspx'
+            realtime: 'https://opendata.wra.gov.tw/api/v2/2be9044c-6e44-4856-aad5-dd108c2e6679?format=JSON&size=1000',
+            daily: 'https://opendata.wra.gov.tw/api/v2/51023e88-4c76-4dbc-bbb9-470da690d539?format=JSON&size=1000'
         };
         
         // 請求配置
         this.requestConfig = {
             timeout: 15000,
-            retries: 3,
+            retries: 2,
             retryDelay: 1000
         };
         
         // 快取配置
         this.cache = {
-            key: 'reservoir_data_cache',
+            key: 'reservoir_data_cache_v2',
             duration: 5 * 60 * 1000, // 5分鐘
             data: null,
             timestamp: null
@@ -27,26 +28,24 @@ class ReservoirAPI extends Utils.EventEmitter {
         // 水庫站點對照表
         this.stationMapping = {
             "10201": { name: "石門水庫", county: "桃園市", region: "north" },
-            "10203": { name: "新山水庫", county: "基隆市", region: "north" }, 
-            "10204": { name: "翡翠水庫", county: "新北市", region: "north" },
+            "10204": { name: "新山水庫", county: "基隆市", region: "north" },
             "10205": { name: "翡翠水庫", county: "新北市", region: "north" },
-            "10211": { name: "寶山水庫", county: "新竹縣", region: "north" },
-            "10212": { name: "寶山第二水庫", county: "新竹縣", region: "north" },
-            "10401": { name: "永和山水庫", county: "苗栗縣", region: "central" },
-            "10405": { name: "明德水庫", county: "苗栗縣", region: "central" },
-            "10501": { name: "鯉魚潭水庫", county: "苗栗縣", region: "central" },
-            "10503": { name: "德基水庫", county: "台中市", region: "central" },
-            "10601": { name: "霧社水庫", county: "南投縣", region: "central" },
-            "20101": { name: "日月潭水庫", county: "南投縣", region: "central" },
+            "10401": { name: "寶山水庫", county: "新竹縣", region: "north" },
+            "10405": { name: "寶山第二水庫", county: "新竹縣", region: "north" },
+            "10501": { name: "永和山水庫", county: "苗栗縣", region: "central" },
+            "10601": { name: "明德水庫", county: "苗栗縣", region: "central" },
+            "20101": { name: "鯉魚潭水庫", county: "苗栗縣", region: "central" },
             "20201": { name: "德基水庫", county: "台中市", region: "central" },
+            "20501": { name: "霧社水庫", county: "南投縣", region: "central" },
+            "20502": { name: "日月潭水庫", county: "南投縣", region: "central" },
             "20509": { name: "湖山水庫", county: "雲林縣", region: "central" },
             "30301": { name: "仁義潭水庫", county: "嘉義縣", region: "south" },
             "30302": { name: "蘭潭水庫", county: "嘉義市", region: "south" },
-            "30501": { name: "白河水庫", county: "台南市", region: "south" },
+            "30401": { name: "白河水庫", county: "台南市", region: "south" },
+            "30501": { name: "烏山頭水庫", county: "台南市", region: "south" },
             "30502": { name: "曾文水庫", county: "台南市", region: "south" },
-            "30503": { name: "烏山頭水庫", county: "台南市", region: "south" },
-            "30504": { name: "南化水庫", county: "台南市", region: "south" },
-            "30801": { name: "阿公店水庫", county: "高雄市", region: "south" },
+            "30503": { name: "南化水庫", county: "台南市", region: "south" },
+            "30802": { name: "阿公店水庫", county: "高雄市", region: "south" },
             "31201": { name: "牡丹水庫", county: "屏東縣", region: "south" }
         };
         
@@ -103,9 +102,9 @@ class ReservoirAPI extends Utils.EventEmitter {
             const response = await fetch(url, {
                 ...options,
                 signal: controller.signal,
+                cache: 'no-store',
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (compatible; ReservoirMonitor/1.0)',
-                    'Accept': 'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept': 'application/json',
                     ...options.headers
                 }
             });
@@ -151,61 +150,54 @@ class ReservoirAPI extends Utils.EventEmitter {
         throw lastError;
     }
     
-    // 解析即時 API 資料
-    parseRealtimeData(data) {
-        if (!Array.isArray(data)) {
+    // 合併每小時水情與每日有效容量資料
+    parseOpenData(realtimeData, dailyData) {
+        if (!Array.isArray(realtimeData) || !Array.isArray(dailyData)) {
             throw new Error('無效的 API 資料格式');
         }
-        
+
+        const capacities = new Map();
+        for (const item of dailyData) {
+            const stationNo = item.reservoiridentifier;
+            const capacity = Number.parseFloat(item.capacity);
+
+            if (this.stationMapping[stationNo] && Number.isFinite(capacity) && capacity > 0) {
+                capacities.set(stationNo, capacity);
+            }
+        }
+
+        // 開放資料會包含同一水庫多筆觀測，只保留最新一筆。
+        const latestReadings = new Map();
+        for (const item of realtimeData) {
+            const stationNo = item.reservoiridentifier;
+            if (!this.stationMapping[stationNo]) continue;
+
+            const current = latestReadings.get(stationNo);
+            if (!current || item.observationtime > current.observationtime) {
+                latestReadings.set(stationNo, item);
+            }
+        }
+
         const reservoirs = {};
-        const processed = new Set();
-        
-        for (const item of data) {
-            const stationNo = item.StationNo;
+        for (const [stationNo, item] of latestReadings) {
             const stationInfo = this.stationMapping[stationNo];
-            
-            if (!stationInfo) continue;
-            
-            const name = stationInfo.name;
-            
-            // 避免重複處理同一水庫
-            if (processed.has(name)) continue;
-            
+            const effectiveCapacity = capacities.get(stationNo);
+            const effectiveStorage = Number.parseFloat(item.effectivewaterstoragecapacity);
+
+            if (!effectiveCapacity || !Number.isFinite(effectiveStorage) || effectiveStorage < 0) {
+                continue;
+            }
+
             try {
-                const percentage = parseFloat(item.PercentageOfStorage) || 0;
-                const effectiveStorage = parseFloat(item.EffectiveStorage) || 0;
-                
-                // 只處理有效資料
-                if (percentage <= 0 || effectiveStorage <= 0) continue;
-                
-                // 計算有效容量
-                const effectiveCapacity = effectiveStorage / (percentage / 100);
-                
-                // 格式化時間
-                let updateTime;
-                try {
-                    const dt = new Date(item.Time);
-                    updateTime = dt.toLocaleString('zh-TW', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                } catch {
-                    updateTime = new Date().toLocaleString('zh-TW', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-                
-                reservoirs[name] = {
-                    name,
-                    effective_capacity: effectiveCapacity / 10000, // 轉換為萬立方公尺
-                    effective_water_storage: effectiveStorage / 10000,
+                const percentage = Math.min(100, Math.max(0, effectiveStorage / effectiveCapacity * 100));
+                const updateTime = item.observationtime
+                    ? item.observationtime.replace('T', ' ').slice(0, 16)
+                    : '--';
+
+                reservoirs[stationInfo.name] = {
+                    name: stationInfo.name,
+                    effective_capacity: effectiveCapacity,
+                    effective_water_storage: effectiveStorage,
                     percentage: Math.round(percentage * 100) / 100,
                     county: stationInfo.county,
                     region: stationInfo.region,
@@ -213,13 +205,11 @@ class ReservoirAPI extends Utils.EventEmitter {
                     station_no: stationNo
                 };
                 
-                processed.add(name);
             } catch (error) {
                 console.warn(`解析站點 ${stationNo} 時發生錯誤:`, error);
-                continue;
             }
         }
-        
+
         return reservoirs;
     }
     
@@ -238,24 +228,30 @@ class ReservoirAPI extends Utils.EventEmitter {
                 }
             }
             
-            // 嘗試即時 API
-            console.log('嘗試從即時 API 獲取資料...');
+            // 同時取得即時蓄水量與有效容量
+            console.log('嘗試從水利署開放資料 API 獲取資料...');
             
             try {
                 const data = await this.withRetry(async () => {
-                    const response = await this.makeRequest(this.endpoints.primary);
-                    const jsonData = await response.json();
-                    return this.parseRealtimeData(jsonData);
+                    const [realtimeResponse, dailyResponse] = await Promise.all([
+                        this.makeRequest(this.endpoints.realtime),
+                        this.makeRequest(this.endpoints.daily)
+                    ]);
+                    const [realtimeData, dailyData] = await Promise.all([
+                        realtimeResponse.json(),
+                        dailyResponse.json()
+                    ]);
+                    return this.parseOpenData(realtimeData, dailyData);
                 });
                 
                 if (Object.keys(data).length > 0) {
-                    console.log(`成功從即時 API 獲取 ${Object.keys(data).length} 座水庫資料`);
+                    console.log(`成功從水利署開放資料 API 獲取 ${Object.keys(data).length} 座水庫資料`);
                     this.saveCache(data);
                     this.emit('fetchSuccess', data);
                     return data;
                 }
             } catch (error) {
-                console.warn('即時 API 失敗:', error.message);
+                console.warn('水利署開放資料 API 失敗:', error.message);
             }
             
             // 降級到模擬資料
@@ -342,15 +338,13 @@ class ReservoirAPI extends Utils.EventEmitter {
     // 檢查 API 狀態
     async checkApiStatus() {
         try {
-            await this.makeRequest(this.endpoints.primary, { method: 'HEAD' });
-            return { status: 'online', endpoint: 'primary' };
-        } catch (error) {
-            try {
-                await this.makeRequest(this.endpoints.backup, { method: 'HEAD' });
-                return { status: 'degraded', endpoint: 'backup' };
-            } catch {
-                return { status: 'offline', endpoint: null };
-            }
+            await Promise.all([
+                this.makeRequest(this.endpoints.realtime),
+                this.makeRequest(this.endpoints.daily)
+            ]);
+            return { status: 'online', endpoint: 'wra-open-data' };
+        } catch {
+            return { status: 'offline', endpoint: null };
         }
     }
 }
