@@ -79,6 +79,15 @@
             </div>
         </header>
 
+        <section class="data-status-section" aria-live="polite">
+            <div class="container">
+                <div id="data-status" class="data-status unavailable" role="status">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。</span>
+                </div>
+            </div>
+        </section>
+
         <!-- 統計卡片區域 -->
         <section class="stats-section">
             <div class="container">
@@ -213,7 +222,6 @@
     </button>
 
     <!-- JavaScript 模組 -->
-    <script src="data/mock-data.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
     <script src="js/charts.js"></script>

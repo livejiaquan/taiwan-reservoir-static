@@ -17,6 +17,7 @@ class ReservoirApp extends Utils.EventEmitter {
         this.elements = {
             loadingScreen: document.getElementById('loading-screen'),
             mainContainer: document.getElementById('main-container'),
+            dataStatus: document.getElementById('data-status'),
             lastUpdateTime: document.getElementById('last-update-time'),
             refreshBtn: document.getElementById('refresh-btn'),
             statsGrid: document.getElementById('stats-grid'),
@@ -38,6 +39,12 @@ class ReservoirApp extends Utils.EventEmitter {
         try {
             // 綁定事件監聽器
             this.bindEvents();
+
+            // 即使初次請求失敗，仍保留後續自動恢復機會。
+            this.startAutoRefresh();
+
+            // 設置滾動監聽
+            this.setupScrollListeners();
             
             // 初始載入資料
             await this.loadData();
@@ -45,16 +52,12 @@ class ReservoirApp extends Utils.EventEmitter {
             // 隱藏載入畫面
             this.hideLoadingScreen();
             
-            // 啟動自動刷新
-            this.startAutoRefresh();
-            
-            // 設置滾動監聽
-            this.setupScrollListeners();
-            
             console.log('✅ 應用程式初始化完成');
             
         } catch (error) {
             console.error('❌ 應用程式初始化失敗:', error);
+            this.hideLoadingScreen();
+            this.setDataStatus('unavailable', '目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。');
             this.showError('應用程式初始化失敗，請重新整理頁面');
         }
     }
@@ -92,11 +95,14 @@ class ReservoirApp extends Utils.EventEmitter {
             this.state.data = data;
             this.state.lastUpdate = new Date();
             this.setLoading(false);
+            this.setDataStatus('verified', '已載入經濟部水利署官方開放資料。');
             this.renderAll();
         });
         
         window.api.on('fetchError', (error) => {
             this.setLoading(false);
+            this.clearDisplayedData(window.chartManager);
+            this.setDataStatus('unavailable', '目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。');
             this.showError(`載入資料失敗: ${error.message}`);
         });
         
@@ -123,6 +129,26 @@ class ReservoirApp extends Utils.EventEmitter {
         } catch (error) {
             throw new Error(`載入資料失敗: ${error.message}`);
         }
+    }
+
+    setDataStatus(status, message) {
+        if (!this.elements.dataStatus) return;
+
+        this.elements.dataStatus.classList.toggle('verified', status === 'verified');
+        this.elements.dataStatus.classList.toggle('unavailable', status !== 'verified');
+        const icon = status === 'verified' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+        this.elements.dataStatus.querySelector('i').className = `bi ${icon}`;
+        this.elements.dataStatus.querySelector('span').textContent = message;
+    }
+
+    clearDisplayedData(chartManager) {
+        this.state.data = {};
+        this.state.lastUpdate = null;
+        if (this.elements.lastUpdateTime) {
+            this.elements.lastUpdateTime.textContent = '--';
+        }
+        chartManager.destroyChart('overview-chart');
+        this.renderAll();
     }
     
     // 刷新資料
@@ -510,7 +536,9 @@ class ReservoirApp extends Utils.EventEmitter {
         if (this.state.autoRefresh) {
             this.state.refreshInterval = setInterval(() => {
                 if (!this.state.isLoading) {
-                    this.loadData(true);
+                    return this.loadData(true).catch(error => {
+                        console.warn('自動刷新失敗:', error.message);
+                    });
                 }
             }, 5 * 60 * 1000); // 每5分鐘刷新
         }

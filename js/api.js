@@ -19,7 +19,8 @@ class ReservoirAPI extends Utils.EventEmitter {
         
         // 快取配置
         this.cache = {
-            key: 'reservoir_data_cache_v2',
+            // v3 invalidates older browser caches that may contain simulated data.
+            key: 'reservoir_data_cache_v3',
             duration: 5 * 60 * 1000, // 5分鐘
             data: null,
             timestamp: null
@@ -87,7 +88,12 @@ class ReservoirAPI extends Utils.EventEmitter {
         if (this.cache.data && this.cache.timestamp) {
             const age = Date.now() - this.cache.timestamp;
             if (age < this.cache.duration) {
-                return this.cache.data;
+                try {
+                    this.validateSnapshot(this.cache.data);
+                    return this.cache.data;
+                } catch {
+                    this.clearCache();
+                }
             }
         }
         return null;
@@ -212,6 +218,51 @@ class ReservoirAPI extends Utils.EventEmitter {
 
         return reservoirs;
     }
+
+    validateSnapshot(data, now = Date.now()) {
+        const reservoirs = Object.values(data);
+        const minimumCoverage = Math.ceil(Object.keys(this.stationMapping).length / 2);
+        const mappedStationIds = new Set(
+            reservoirs
+                .map(reservoir => reservoir.station_no)
+                .filter(stationNo => this.stationMapping[stationNo])
+        );
+        if (mappedStationIds.size < minimumCoverage) {
+            throw new Error(`官方資料涵蓋不足：僅 ${mappedStationIds.size}/${minimumCoverage} 座水庫`);
+        }
+
+        const maximumAge = 48 * 60 * 60 * 1000;
+        const maximumFutureSkew = 60 * 60 * 1000;
+        for (const reservoir of reservoirs) {
+            const match = typeof reservoir.update_time === 'string'
+                ? reservoir.update_time.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/)
+                : null;
+            if (!match) {
+                throw new Error('官方資料缺少有效觀測時間');
+            }
+
+            const [, yearText, monthText, dayText, hourText, minuteText] = match;
+            const parts = [yearText, monthText, dayText, hourText, minuteText].map(Number);
+            const [year, month, day, hour, minute] = parts;
+            const calendar = new Date(Date.UTC(year, month - 1, day, hour, minute));
+            const calendarIsValid = calendar.getUTCFullYear() === year
+                && calendar.getUTCMonth() === month - 1
+                && calendar.getUTCDate() === day
+                && calendar.getUTCHours() === hour
+                && calendar.getUTCMinutes() === minute;
+            if (!calendarIsValid) {
+                throw new Error('官方資料缺少有效觀測時間');
+            }
+
+            const timestamp = Date.UTC(year, month - 1, day, hour - 8, minute);
+            if (now - timestamp > maximumAge) {
+                throw new Error('官方資料過期，無法作為目前水情');
+            }
+            if (timestamp - now > maximumFutureSkew) {
+                throw new Error('官方資料觀測時間異常');
+            }
+        }
+    }
     
     // 取得水庫資料
     async fetchReservoirData(forceRefresh = false) {
@@ -243,12 +294,8 @@ class ReservoirAPI extends Utils.EventEmitter {
                     ]);
                     const parsedData = this.parseOpenData(realtimeData, dailyData);
 
-                    // A successful HTTP response can still carry an incomplete
-                    // upstream snapshot. Treat it as retryable instead of
-                    // immediately replacing the dashboard with mock data.
-                    if (Object.keys(parsedData).length === 0) {
-                        throw new Error('開放資料暫時未包含可用水庫資料');
-                    }
+                    // HTTP 200 仍可能是 WAF、殘缺或過期內容；通過信任檢查才顯示。
+                    this.validateSnapshot(parsedData);
 
                     return parsedData;
                 });
@@ -259,25 +306,14 @@ class ReservoirAPI extends Utils.EventEmitter {
                 return data;
             } catch (error) {
                 console.warn('水利署開放資料 API 失敗:', error.message);
+                throw new Error(`水利署資料目前無法取得：${error.message}`);
             }
-            
-            // 降級到模擬資料
-            console.log('使用模擬資料...');
-            const mockData = await getMockReservoirData();
-            this.saveCache(mockData);
-            this.emit('fetchSuccess', mockData);
-            return mockData;
-            
+
         } catch (error) {
+            this.clearCache();
             const errorInfo = Utils.handleError(error, '獲取水庫資料');
             this.emit('fetchError', errorInfo);
-            
-            // 嘗試返回快取資料
-            if (this.cache.data) {
-                console.log('返回過期的快取資料');
-                return this.cache.data;
-            }
-            
+
             throw error;
         }
     }

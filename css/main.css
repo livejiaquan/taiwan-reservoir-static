@@ -298,6 +298,35 @@ body {
     animation: spin 1s linear infinite;
 }
 
+.data-status-section {
+    padding: 1rem 0 0;
+    background: var(--bg-secondary);
+}
+
+.data-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: 0.85rem 1rem;
+    border: 1px solid;
+    border-radius: var(--radius-lg);
+    font-weight: 700;
+    text-align: center;
+}
+
+.data-status.unavailable {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.data-status.verified {
+    color: #065f46;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
