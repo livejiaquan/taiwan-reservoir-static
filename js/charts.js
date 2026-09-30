@@ -21,7 +21,7 @@ class ChartManager {
                         weight: 'bold'
                     },
                     bodyFont: {
-                        size: 13
+                        size: 14
                     }
                 }
             }
@@ -71,7 +71,7 @@ class ChartManager {
                 scales: {
                     x: {
                         beginAtZero: true,
-                        max: 100,
+                        suggestedMax: 100,
                         grid: {
                             color: 'rgba(0, 0, 0, 0.1)',
                             drawBorder: false
@@ -82,7 +82,7 @@ class ChartManager {
                             },
                             color: '#64748b',
                             font: {
-                                size: 12
+                                size: 14
                             }
                         }
                     },
@@ -93,7 +93,7 @@ class ChartManager {
                         ticks: {
                             color: '#1e293b',
                             font: {
-                                size: 13,
+                                size: 14,
                                 weight: '500'
                             }
                         }
@@ -113,8 +113,9 @@ class ChartManager {
                                 return [
                                     `蓄水率: ${reservoir.percentage.toFixed(1)}%`,
                                     `有效容量: ${Utils.formatNumber(reservoir.effective_capacity)} 萬立方公尺`,
-                                    `目前水量: ${Utils.formatNumber(reservoir.effective_water_storage)} 萬立方公尺`,
-                                    `更新時間: ${reservoir.update_time}`
+                                    `觀測蓄水量: ${Utils.formatNumber(reservoir.effective_water_storage)} 萬立方公尺`,
+                                    `水量觀測: ${Utils.formatTaipeiTime(reservoir.observed_at)}`,
+                                    `容量資料: ${Utils.formatTaipeiTime(reservoir.capacity_recorded_at)}`
                                 ];
                             }
                         }
@@ -131,13 +132,13 @@ class ChartManager {
             this.charts.set(canvasId, chart);
             
             // 添加點擊事件
-            canvas.addEventListener('click', (event) => {
+            canvas.onclick = (event) => {
                 const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
                 if (points.length) {
                     const reservoir = reservoirs[points[0].index];
                     this.onChartClick(reservoir);
                 }
-            });
+            };
             
             return chart;
         } catch (error) {
@@ -163,7 +164,7 @@ class ChartManager {
         };
         
         const chartData = {
-            labels: ['充足', '正常', '偏低', '嚴重缺水'],
+            labels: ['≥80%', '50–80%', '30–50%', '<30%'],
             datasets: [{
                 data: [stats.sufficient, stats.normal, stats.low, stats.critical],
                 backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
@@ -186,7 +187,7 @@ class ChartManager {
                         labels: {
                             padding: 20,
                             font: {
-                                size: 13,
+                                size: 14,
                                 weight: '500'
                             },
                             color: '#1e293b'
@@ -216,113 +217,12 @@ class ChartManager {
         }
     }
     
-    // 創建折線圖（歷史趨勢）
-    createTrendChart(canvasId, historicalData) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return null;
-        
+    // 尚未接入經驗證的歷史資料，不能以隨機數生成水情趨勢。
+    createTrendChart(canvasId) {
         this.destroyChart(canvasId);
-        
-        // 模擬歷史資料（實際應用中應從 API 獲取）
-        const labels = [];
-        const dataPoints = [];
-        const now = new Date();
-        
-        for (let i = 29; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(date.getDate() - i);
-            labels.push(date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }));
-            
-            // 模擬資料變化
-            const baseValue = 65;
-            const variation = Math.sin(i / 10) * 15 + Math.random() * 5;
-            dataPoints.push(Math.max(20, Math.min(95, baseValue + variation)));
-        }
-        
-        const chartData = {
-            labels,
-            datasets: [{
-                label: '平均蓄水率',
-                data: dataPoints,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#3b82f6',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        };
-        
-        const config = {
-            type: 'line',
-            data: chartData,
-            options: {
-                ...this.defaultOptions,
-                scales: {
-                    x: {
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: { size: 11 }
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            },
-                            color: '#64748b',
-                            font: { size: 11 }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            font: {
-                                size: 13,
-                                weight: '500'
-                            },
-                            color: '#1e293b'
-                        }
-                    },
-                    tooltip: {
-                        ...this.defaultOptions.plugins.tooltip,
-                        callbacks: {
-                            label: function(context) {
-                                return `平均蓄水率: ${context.parsed.y.toFixed(1)}%`;
-                            }
-                        }
-                    }
-                }
-            }
-        };
-        
-        try {
-            const chart = new Chart(canvas.getContext('2d'), config);
-            this.charts.set(canvasId, chart);
-            return chart;
-        } catch (error) {
-            console.error('創建趨勢圖時發生錯誤:', error);
-            return null;
-        }
+        return null;
     }
-    
+
     // 創建地區對比圖
     createRegionComparisonChart(canvasId, data) {
         const canvas = document.getElementById(canvasId);
@@ -344,11 +244,11 @@ class ChartManager {
             regionStats[region].reservoirs.push(reservoir);
         });
         
-        // 計算各地區平均蓄水率
+        // 計算各地區合計蓄水率（容量加權）
         Object.keys(regionStats).forEach(region => {
             const reservoirs = regionStats[region].reservoirs;
             regionStats[region].total = reservoirs.length;
-            regionStats[region].average = reservoirs.reduce((sum, r) => sum + r.percentage, 0) / reservoirs.length;
+            regionStats[region].average = Utils.getStorageSummary(reservoirs).weightedPercentage;
         });
         
         const regionNames = {
@@ -365,7 +265,7 @@ class ChartManager {
         const chartData = {
             labels,
             datasets: [{
-                label: '平均蓄水率',
+                label: '合計蓄水率（容量加權）',
                 data: averages,
                 backgroundColor: colors,
                 borderColor: colors,
@@ -388,14 +288,14 @@ class ChartManager {
                         ticks: {
                             color: '#1e293b',
                             font: {
-                                size: 13,
+                                size: 14,
                                 weight: '500'
                             }
                         }
                     },
                     y: {
                         beginAtZero: true,
-                        max: 100,
+                        suggestedMax: 100,
                         grid: {
                             color: 'rgba(0, 0, 0, 0.1)',
                             drawBorder: false
@@ -405,7 +305,7 @@ class ChartManager {
                                 return value + '%';
                             },
                             color: '#64748b',
-                            font: { size: 12 }
+                            font: { size: 14 }
                         }
                     }
                 },
@@ -419,7 +319,7 @@ class ChartManager {
                                 return `${labels[context[0].dataIndex]} (${stat.total}座水庫)`;
                             },
                             label: function(context) {
-                                return `平均蓄水率: ${context.parsed.y.toFixed(1)}%`;
+                                return `合計蓄水率（容量加權）: ${context.parsed.y.toFixed(1)}%`;
                             }
                         }
                     }
@@ -439,6 +339,8 @@ class ChartManager {
     
     // 銷毀指定圖表
     destroyChart(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (canvas) canvas.onclick = null;
         if (this.charts.has(canvasId)) {
             this.charts.get(canvasId).destroy();
             this.charts.delete(canvasId);
@@ -447,8 +349,9 @@ class ChartManager {
     
     // 銷毀所有圖表
     destroyAllCharts() {
-        this.charts.forEach(chart => chart.destroy());
-        this.charts.clear();
+        for (const canvasId of [...this.charts.keys()]) {
+            this.destroyChart(canvasId);
+        }
     }
     
     // 圖表點擊事件處理

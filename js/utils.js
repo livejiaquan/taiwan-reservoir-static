@@ -15,6 +15,60 @@ function formatPercentage(num) {
     return `${num.toFixed(1)}%`;
 }
 
+// 水利署未附時區的時間按台北時間解讀；含時區時保留其實際時刻。
+// 不交給瀏覽器猜測日期格式，避免使用者所在時區改變觀測時間。
+function parseSourceTime(value) {
+    if (typeof value !== 'string') return null;
+    const compact = value.trim().replace(
+        /^(\d{4})(\d{2})(\d{2})[Tt](\d{2})(\d{2})(\d{2})$/,
+        '$1-$2-$3T$4:$5:$6'
+    );
+    const match = compact.match(/^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})?$/i);
+    if (!match) return null;
+    const [year, month, day, hour, minute, second] = match.slice(1, 7).map(value => Number(value || 0));
+    const calendar = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1
+        || calendar.getUTCDate() !== day || calendar.getUTCHours() !== hour
+        || calendar.getUTCMinutes() !== minute || calendar.getUTCSeconds() !== second) return null;
+    const milliseconds = Number((match[7] || '').padEnd(3, '0'));
+    const zone = match[8];
+    let offset = 8 * 60;
+    if (zone && zone.toUpperCase() === 'Z') offset = 0;
+    else if (zone) {
+        const [zoneHour, zoneMinute] = zone.slice(1).split(':').map(Number);
+        if (zoneHour > 14 || zoneMinute > 59 || (zoneHour === 14 && zoneMinute !== 0)) return null;
+        offset = (zoneHour * 60 + zoneMinute) * (zone[0] === '-' ? -1 : 1);
+    }
+    return calendar.getTime() + milliseconds - offset * 60 * 1000;
+}
+
+function formatTaipeiTime(timestamp) {
+    if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return '時間未知';
+    return new Intl.DateTimeFormat('zh-TW', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    }).format(new Date(timestamp)) + '（台北 UTC+8）';
+}
+
+function getStorageSummary(reservoirs) {
+    const valid = reservoirs.filter(r => Number.isFinite(r.effective_capacity) && r.effective_capacity > 0
+        && Number.isFinite(r.effective_water_storage) && r.effective_water_storage >= 0);
+    const totalCapacity = valid.reduce((sum, r) => sum + r.effective_capacity, 0);
+    const totalStorage = valid.reduce((sum, r) => sum + r.effective_water_storage, 0);
+    return {
+        totalCapacity, totalStorage,
+        weightedPercentage: totalCapacity > 0 ? totalStorage / totalCapacity * 100 : null
+    };
+}
+
+function getObservationStatus(timestamp, now = Date.now()) {
+    if (!Number.isFinite(timestamp)) return '觀測時間未知';
+    if (timestamp - now > 60 * 60 * 1000) return '觀測時間異常';
+    if (now - timestamp > 48 * 60 * 60 * 1000) return '觀測已過期';
+    if (now - timestamp > 6 * 60 * 60 * 1000) return '觀測距今已逾 6 小時';
+    return '6 小時內觀測';
+}
+
 // 取得水位顏色
 function getWaterLevelColor(percentage) {
     if (percentage >= 80) return '#059669'; // 綠色 - 充足
@@ -25,10 +79,10 @@ function getWaterLevelColor(percentage) {
 
 // 取得水位狀態文字
 function getWaterLevelText(percentage) {
-    if (percentage >= 80) return '水位充足';
-    if (percentage >= 50) return '水位正常';
-    if (percentage >= 30) return '蓄水偏低';
-    return '嚴重缺水';
+    if (percentage >= 80) return '蓄水率 ≥80%';
+    if (percentage >= 50) return '蓄水率 50–80%';
+    if (percentage >= 30) return '蓄水率 30–50%';
+    return '蓄水率 <30%';
 }
 
 // 取得水位圖標
@@ -422,6 +476,10 @@ function showNotification(message, type = 'info', duration = 3000) {
 window.Utils = {
     formatNumber,
     formatPercentage,
+    parseSourceTime,
+    formatTaipeiTime,
+    getStorageSummary,
+    getObservationStatus,
     getWaterLevelColor,
     getWaterLevelText,
     getWaterLevelIcon,

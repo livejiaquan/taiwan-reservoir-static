@@ -19,8 +19,8 @@ class ReservoirAPI extends Utils.EventEmitter {
         
         // 快取配置
         this.cache = {
-            // v3 invalidates older browser caches that may contain simulated data.
-            key: 'reservoir_data_cache_v3',
+            // v4 preserves source timestamps and invalidates older incomplete metadata.
+            key: 'reservoir_data_cache_v4',
             duration: 5 * 60 * 1000, // 5分鐘
             data: null,
             timestamp: null
@@ -61,7 +61,7 @@ class ReservoirAPI extends Utils.EventEmitter {
             const now = Date.now();
             const age = now - cached.timestamp;
             
-            if (age < this.cache.duration) {
+            if (age >= 0 && age < this.cache.duration) {
                 this.cache.data = cached.data;
                 this.cache.timestamp = cached.timestamp;
                 console.log('已載入快取的水庫資料');
@@ -87,7 +87,7 @@ class ReservoirAPI extends Utils.EventEmitter {
     getCachedData() {
         if (this.cache.data && this.cache.timestamp) {
             const age = Date.now() - this.cache.timestamp;
-            if (age < this.cache.duration) {
+            if (age >= 0 && age < this.cache.duration) {
                 try {
                     this.validateSnapshot(this.cache.data);
                     return this.cache.data;
@@ -163,57 +163,53 @@ class ReservoirAPI extends Utils.EventEmitter {
         }
 
         const capacities = new Map();
+        const readNumber = value => (typeof value === 'number' || (typeof value === 'string' && value.trim()))
+            ? Number(value) : NaN;
         for (const item of dailyData) {
             const stationNo = item.reservoiridentifier;
-            const capacity = Number.parseFloat(item.capacity);
-
-            if (this.stationMapping[stationNo] && Number.isFinite(capacity) && capacity > 0) {
-                capacities.set(stationNo, capacity);
+            const capacity = readNumber(item.capacity);
+            const timestamp = Utils.parseSourceTime(item.datetime);
+            const current = capacities.get(stationNo);
+            if (this.stationMapping[stationNo] && Number.isFinite(capacity) && capacity > 0
+                && (!current || (timestamp !== null && (current.timestamp === null || timestamp > current.timestamp)))) {
+                capacities.set(stationNo, { capacity, timestamp });
             }
         }
 
-        // 開放資料會包含同一水庫多筆觀測，只保留最新一筆。
+        // 不按原始字串或回傳順序排序，以同一時基選取最新觀測。
         const latestReadings = new Map();
         for (const item of realtimeData) {
             const stationNo = item.reservoiridentifier;
             if (!this.stationMapping[stationNo]) continue;
-
+            const timestamp = Utils.parseSourceTime(item.observationtime);
+            if (timestamp === null) continue;
             const current = latestReadings.get(stationNo);
-            if (!current || item.observationtime > current.observationtime) {
-                latestReadings.set(stationNo, item);
+            if (!current || timestamp > current.timestamp) {
+                latestReadings.set(stationNo, { item, timestamp });
             }
         }
 
         const reservoirs = {};
-        for (const [stationNo, item] of latestReadings) {
+        for (const [stationNo, { item, timestamp }] of latestReadings) {
             const stationInfo = this.stationMapping[stationNo];
-            const effectiveCapacity = capacities.get(stationNo);
-            const effectiveStorage = Number.parseFloat(item.effectivewaterstoragecapacity);
-
-            if (!effectiveCapacity || !Number.isFinite(effectiveStorage) || effectiveStorage < 0) {
-                continue;
-            }
-
-            try {
-                const percentage = Math.min(100, Math.max(0, effectiveStorage / effectiveCapacity * 100));
-                const updateTime = item.observationtime
-                    ? item.observationtime.replace('T', ' ').slice(0, 16)
-                    : '--';
-
-                reservoirs[stationInfo.name] = {
-                    name: stationInfo.name,
-                    effective_capacity: effectiveCapacity,
-                    effective_water_storage: effectiveStorage,
-                    percentage: Math.round(percentage * 100) / 100,
-                    county: stationInfo.county,
-                    region: stationInfo.region,
-                    update_time: updateTime,
-                    station_no: stationNo
-                };
-                
-            } catch (error) {
-                console.warn(`解析站點 ${stationNo} 時發生錯誤:`, error);
-            }
+            const capacityRecord = capacities.get(stationNo);
+            const effectiveStorage = readNumber(item.effectivewaterstoragecapacity);
+            if (!capacityRecord || !Number.isFinite(effectiveStorage) || effectiveStorage < 0) continue;
+            const effectiveCapacity = capacityRecord.capacity;
+            const percentage = effectiveStorage / effectiveCapacity * 100;
+            if (!Number.isFinite(percentage)) continue;
+            reservoirs[stationInfo.name] = {
+                name: stationInfo.name,
+                effective_capacity: effectiveCapacity,
+                effective_water_storage: effectiveStorage,
+                percentage: Math.round(percentage * 100) / 100,
+                county: stationInfo.county,
+                region: stationInfo.region,
+                observed_at: timestamp,
+                capacity_recorded_at: capacityRecord.timestamp,
+                update_time: Utils.formatTaipeiTime(timestamp),
+                station_no: stationNo
+            };
         }
 
         return reservoirs;
@@ -228,33 +224,21 @@ class ReservoirAPI extends Utils.EventEmitter {
                 .filter(stationNo => this.stationMapping[stationNo])
         );
         if (mappedStationIds.size < minimumCoverage) {
-            throw new Error(`官方資料涵蓋不足：僅 ${mappedStationIds.size}/${minimumCoverage} 座水庫`);
+            throw new Error(`官方資料涵蓋不足：本站 20 座清單中僅 ${mappedStationIds.size} 座可用，至少需 ${minimumCoverage} 座`);
         }
 
         const maximumAge = 48 * 60 * 60 * 1000;
         const maximumFutureSkew = 60 * 60 * 1000;
         for (const reservoir of reservoirs) {
-            const match = typeof reservoir.update_time === 'string'
-                ? reservoir.update_time.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/)
-                : null;
-            if (!match) {
+            const timestamp = reservoir.observed_at;
+            if (!Number.isFinite(timestamp)) {
                 throw new Error('官方資料缺少有效觀測時間');
             }
-
-            const [, yearText, monthText, dayText, hourText, minuteText] = match;
-            const parts = [yearText, monthText, dayText, hourText, minuteText].map(Number);
-            const [year, month, day, hour, minute] = parts;
-            const calendar = new Date(Date.UTC(year, month - 1, day, hour, minute));
-            const calendarIsValid = calendar.getUTCFullYear() === year
-                && calendar.getUTCMonth() === month - 1
-                && calendar.getUTCDate() === day
-                && calendar.getUTCHours() === hour
-                && calendar.getUTCMinutes() === minute;
-            if (!calendarIsValid) {
-                throw new Error('官方資料缺少有效觀測時間');
+            if (!Number.isFinite(reservoir.effective_capacity) || reservoir.effective_capacity <= 0
+                || !Number.isFinite(reservoir.effective_water_storage) || reservoir.effective_water_storage < 0
+                || !Number.isFinite(reservoir.percentage) || reservoir.percentage < 0) {
+                throw new Error('官方資料缺少有效容量或蓄水量');
             }
-
-            const timestamp = Date.UTC(year, month - 1, day, hour - 8, minute);
             if (now - timestamp > maximumAge) {
                 throw new Error('官方資料過期，無法作為目前水情');
             }
@@ -345,31 +329,32 @@ class ReservoirAPI extends Utils.EventEmitter {
         const data = await this.fetchReservoirData();
         const reservoirs = Object.values(data);
         
-        if (reservoirs.length === 0) {
-            return {
-                total: 0,
-                average: 0,
-                sufficient: 0,
-                normal: 0,
-                low: 0,
-                critical: 0,
-                totalCapacity: 0,
-                totalStorage: 0
-            };
-        }
-        
         return {
             total: reservoirs.length,
-            average: reservoirs.reduce((sum, r) => sum + r.percentage, 0) / reservoirs.length,
+            ...Utils.getStorageSummary(reservoirs),
             sufficient: reservoirs.filter(r => r.percentage >= 80).length,
             normal: reservoirs.filter(r => r.percentage >= 50 && r.percentage < 80).length,
             low: reservoirs.filter(r => r.percentage >= 30 && r.percentage < 50).length,
-            critical: reservoirs.filter(r => r.percentage < 30).length,
-            totalCapacity: reservoirs.reduce((sum, r) => sum + r.effective_capacity, 0),
-            totalStorage: reservoirs.reduce((sum, r) => sum + r.effective_water_storage, 0)
+            critical: reservoirs.filter(r => r.percentage < 30).length
         };
     }
-    
+
+    // 擷取時間來自成功網路回應的快取記錄，讀取快取不會改寫時間。
+    getSnapshotMetadata(data = this.cache.data) {
+        const reservoirs = Object.values(data || {});
+        const ids = new Set(reservoirs.map(r => r.station_no));
+        const observedTimes = reservoirs.map(r => r.observed_at).filter(Number.isFinite);
+        return {
+            fetchedAt: this.cache.timestamp,
+            observedFrom: observedTimes.length ? Math.min(...observedTimes) : null,
+            observedTo: observedTimes.length ? Math.max(...observedTimes) : null,
+            covered: ids.size,
+            expected: Object.keys(this.stationMapping).length,
+            missing: Object.entries(this.stationMapping).filter(([id]) => !ids.has(id)).map(([, station]) => station.name),
+            unknownCapacityTimes: reservoirs.filter(r => !Number.isFinite(r.capacity_recorded_at)).length
+        };
+    }
+
     // 清除快取
     clearCache() {
         Utils.LocalStorage.remove(this.cache.key);

@@ -69,9 +69,9 @@
                     <p class="subtitle">Taiwan Reservoir Real-time Monitoring System</p>
                     <div class="update-info">
                         <i class="bi bi-clock"></i>
-                        <span>最後更新：</span>
+                        <span>上次成功擷取：</span>
                         <span id="last-update-time">--</span>
-                        <button id="refresh-btn" class="refresh-btn" title="立即更新">
+                        <button id="refresh-btn" class="refresh-btn" title="立即重新擷取" aria-label="立即重新擷取官方資料">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
@@ -84,6 +84,21 @@
                 <div id="data-status" class="data-status unavailable" role="status">
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     <span>目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。</span>
+                </div>
+                <div class="data-context">
+                    <p><strong>水量觀測時間：</strong><span id="observation-range">未知，尚無可用快照</span></p>
+                    <p id="coverage-summary">尚無可用快照，涵蓋狀況未知。</p>
+                    <p id="missing-stations"></p>
+                    <p id="capacity-time-note"></p>
+                    <details>
+                        <summary>資料範圍與判讀方式</summary>
+                        <p>本站目前對照北部 5 座、中部 7 座、南部 8 座，共 20 座水庫，尚未納入東部及離島；不代表全台所有水庫。</p>
+                        <p>水量來自<a href="https://data.gov.tw/dataset/45501" target="_blank" rel="noopener">水庫水情資料</a>，有效容量來自<a href="https://data.gov.tw/dataset/41568" target="_blank" rel="noopener">水庫每日營運狀況</a>。兩份資料時間可能不同，容量資料的時間列在各卡片。</p>
+                        <p>本站每 5 分鐘嘗試擷取，並非官方每 5 分鐘更新。所有時間均顯示為台北時間（UTC+8）；來源未附時區時按台北時間解讀。</p>
+                        <p>超過 6 小時的觀測會加註提醒。本站至少需 10/20 座可用資料，且每筆觀測不得超過 48 小時或超前 1 小時，否則整份快照不顯示。這是本站資料檢查門檻，並非官方水情標準。</p>
+                        <p>合計蓄水率 = 本次顯示水庫的蓄水量總和 ÷ 有效容量總和，不取各庫百分比的算術平均。觀測時間不同的水庫合計，不能視為同一時刻或全台總量。</p>
+                        <p>蓄水率不能單獨判斷乾旱、限水或自來水停水；同一百分比在不同季節的意義也不同。本站未提供歷年同期比較，請以水利署及供水單位公告為準。</p>
+                    </details>
                 </div>
             </div>
         </section>
@@ -103,9 +118,9 @@
                 <div class="section-header">
                     <h2>
                         <i class="bi bi-bar-chart-fill"></i>
-                        全台水庫蓄水率總覽
+                        本次水庫蓄水率總覽
                     </h2>
-                    <p>各大水庫蓄水情況一覽</p>
+                    <p>僅顯示本次可用資料，範圍與觀測時間見上方說明</p>
                 </div>
                 <div class="chart-container">
                     <canvas id="overview-chart"></canvas>
@@ -121,16 +136,16 @@
                         <i class="bi bi-geo-alt-fill"></i>
                         各地區水庫詳情
                     </h2>
-                    <p>依縣市分類顯示水庫資訊</p>
+                    <p>依本站水庫清單所在區域篩選</p>
                 </div>
                 
                 <!-- 地區選擇器 -->
                 <div class="region-selector">
-                    <button class="region-btn active" data-region="all">全部</button>
-                    <button class="region-btn" data-region="north">北部</button>
-                    <button class="region-btn" data-region="central">中部</button>
-                    <button class="region-btn" data-region="south">南部</button>
-                    <button class="region-btn" data-region="east">東部</button>
+                    <button class="region-btn active" data-region="all" aria-pressed="true">全部</button>
+                    <button class="region-btn" data-region="north" aria-pressed="false">北部</button>
+                    <button class="region-btn" data-region="central" aria-pressed="false">中部</button>
+                    <button class="region-btn" data-region="south" aria-pressed="false">南部</button>
+                    <button class="region-btn" data-region="east" aria-pressed="false">東部（未納入）</button>
                 </div>
                 
                 <!-- 水庫卡片網格 -->
@@ -146,9 +161,9 @@
                 <div class="section-header">
                     <h2>
                         <i class="bi bi-exclamation-triangle-fill"></i>
-                        水情預警
+                        低蓄水率提醒
                     </h2>
-                    <p>需要關注的水庫狀況</p>
+                    <p>本站依蓄水率分組，不代表官方限水或停水警報</p>
                 </div>
                 <div class="alerts-container" id="alerts-container">
                     <!-- 預警卡片將由 JavaScript 動態生成 -->
@@ -164,7 +179,7 @@
                         <h4>台灣水庫即時監控系統</h4>
                         <p>Taiwan Reservoir Real-time Monitoring System</p>
                         <p>資料來源：經濟部水利署開放資料平臺</p>
-                        <p>更新頻率：每5分鐘自動更新</p>
+                        <p>本站每 5 分鐘嘗試擷取；來源更新頻率可能不同</p>
                         <div class="data-disclaimer">
                             <p><small>⚠️ 本系統資料僅供參考，實際狀況請以官方公告為準</small></p>
                         </div>

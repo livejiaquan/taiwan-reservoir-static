@@ -9,6 +9,7 @@ class ReservoirApp extends Utils.EventEmitter {
             currentRegion: 'all',
             isLoading: false,
             lastUpdate: null,
+            metadata: null,
             autoRefresh: true,
             refreshInterval: null
         };
@@ -19,6 +20,10 @@ class ReservoirApp extends Utils.EventEmitter {
             mainContainer: document.getElementById('main-container'),
             dataStatus: document.getElementById('data-status'),
             lastUpdateTime: document.getElementById('last-update-time'),
+            observationRange: document.getElementById('observation-range'),
+            coverageSummary: document.getElementById('coverage-summary'),
+            missingStations: document.getElementById('missing-stations'),
+            capacityTimeNote: document.getElementById('capacity-time-note'),
             refreshBtn: document.getElementById('refresh-btn'),
             statsGrid: document.getElementById('stats-grid'),
             overviewChart: document.getElementById('overview-chart'),
@@ -57,7 +62,7 @@ class ReservoirApp extends Utils.EventEmitter {
         } catch (error) {
             console.error('❌ 應用程式初始化失敗:', error);
             this.hideLoadingScreen();
-            this.setDataStatus('unavailable', '目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。');
+            this.setDataStatus('unavailable', `目前無法確認官方資料：${error.message}。請以水利署公告為準。`);
             this.showError('應用程式初始化失敗，請重新整理頁面');
         }
     }
@@ -74,7 +79,7 @@ class ReservoirApp extends Utils.EventEmitter {
         // 地區選擇按鈕
         this.elements.regionBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const region = e.target.dataset.region;
+                const region = e.currentTarget.dataset.region;
                 this.setCurrentRegion(region);
             });
         });
@@ -93,16 +98,23 @@ class ReservoirApp extends Utils.EventEmitter {
         
         window.api.on('fetchSuccess', (data) => {
             this.state.data = data;
-            this.state.lastUpdate = new Date();
+            this.state.metadata = window.api.getSnapshotMetadata(data);
+            this.state.lastUpdate = this.state.metadata.fetchedAt;
             this.setLoading(false);
-            this.setDataStatus('verified', '已載入經濟部水利署官方開放資料。');
+            const delayed = Date.now() - this.state.metadata.observedFrom > 6 * 60 * 60 * 1000;
+            const partial = this.state.metadata.covered < this.state.metadata.expected;
+            this.setDataStatus(delayed || partial ? 'warning' : 'verified',
+                `已載入水利署資料：${this.state.metadata.covered}/${this.state.metadata.expected} 座。`
+                + (partial ? ' 部分水庫缺少可用資料。' : '')
+                + (delayed ? ' 部分觀測距今已逾 6 小時，請留意觀測時間。' : '')
+                + ' 擷取成功不代表來源剛更新。');
             this.renderAll();
         });
         
         window.api.on('fetchError', (error) => {
             this.setLoading(false);
             this.clearDisplayedData(window.chartManager);
-            this.setDataStatus('unavailable', '目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。');
+            this.setDataStatus('unavailable', `目前無法確認官方資料：${error.message}。未顯示任何水情數值，請以水利署公告為準。`);
             this.showError(`載入資料失敗: ${error.message}`);
         });
         
@@ -123,9 +135,7 @@ class ReservoirApp extends Utils.EventEmitter {
     // 載入資料
     async loadData(forceRefresh = false) {
         try {
-            this.state.data = await window.api.fetchReservoirData(forceRefresh);
-            this.state.lastUpdate = new Date();
-            this.renderAll();
+            await window.api.fetchReservoirData(forceRefresh);
         } catch (error) {
             throw new Error(`載入資料失敗: ${error.message}`);
         }
@@ -135,7 +145,8 @@ class ReservoirApp extends Utils.EventEmitter {
         if (!this.elements.dataStatus) return;
 
         this.elements.dataStatus.classList.toggle('verified', status === 'verified');
-        this.elements.dataStatus.classList.toggle('unavailable', status !== 'verified');
+        this.elements.dataStatus.classList.toggle('unavailable', status === 'unavailable');
+        this.elements.dataStatus.classList.toggle('warning', status === 'warning');
         const icon = status === 'verified' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
         this.elements.dataStatus.querySelector('i').className = `bi ${icon}`;
         this.elements.dataStatus.querySelector('span').textContent = message;
@@ -144,6 +155,7 @@ class ReservoirApp extends Utils.EventEmitter {
     clearDisplayedData(chartManager) {
         this.state.data = {};
         this.state.lastUpdate = null;
+        this.state.metadata = null;
         if (this.elements.lastUpdateTime) {
             this.elements.lastUpdateTime.textContent = '--';
         }
@@ -194,6 +206,7 @@ class ReservoirApp extends Utils.EventEmitter {
         // 更新按鈕狀態
         this.elements.regionBtns.forEach(btn => {
             btn.classList.toggle('active', btn.dataset.region === region);
+            btn.setAttribute('aria-pressed', String(btn.dataset.region === region));
         });
         
         // 重新渲染水庫網格
@@ -205,26 +218,45 @@ class ReservoirApp extends Utils.EventEmitter {
     // 渲染所有組件
     renderAll() {
         this.updateLastUpdateTime();
+        this.renderSourceContext();
         this.renderStats();
         this.renderOverviewChart();
         this.renderReservoirGrid();
         this.renderAlerts();
     }
     
-    // 更新最後更新時間
+    // 網路擷取時間與來源觀測時間分開，統一顯示台北時區。
     updateLastUpdateTime() {
-        if (this.elements.lastUpdateTime && this.state.lastUpdate) {
-            this.elements.lastUpdateTime.textContent = this.state.lastUpdate.toLocaleString('zh-TW', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
+        if (this.elements.lastUpdateTime) {
+            this.elements.lastUpdateTime.textContent = Number.isFinite(this.state.lastUpdate)
+                ? Utils.formatTaipeiTime(this.state.lastUpdate) : '--';
         }
     }
-    
+
+    renderSourceContext() {
+        const metadata = this.state.metadata;
+        if (this.elements.observationRange) {
+            this.elements.observationRange.textContent = metadata
+                ? Utils.formatTaipeiTime(metadata.observedFrom)
+                    + (metadata.observedFrom === metadata.observedTo ? '' : ` 至 ${Utils.formatTaipeiTime(metadata.observedTo)}`)
+                : '未知，尚無可用快照';
+        }
+        if (this.elements.coverageSummary) {
+            this.elements.coverageSummary.textContent = metadata
+                ? `本次顯示 ${metadata.covered}/${metadata.expected} 座清單內水庫；統計僅包含這些水庫。`
+                : '尚無可用快照，涵蓋狀況未知。';
+        }
+        if (this.elements.missingStations) {
+            this.elements.missingStations.textContent = metadata && metadata.missing.length
+                ? `本次未顯示：${metadata.missing.join('、')}。可能缺少蓄水量、容量或有效觀測時間；不代表蓄水量為零。`
+                : '';
+        }
+        if (this.elements.capacityTimeNote) {
+            this.elements.capacityTimeNote.textContent = metadata && metadata.unknownCapacityTimes
+                ? `${metadata.unknownCapacityTimes} 座水庫的容量資料時間未知，詳見各卡片。` : '';
+        }
+    }
+
     // 渲染統計卡片
     renderStats() {
         if (!this.elements.statsGrid) return;
@@ -238,7 +270,7 @@ class ReservoirApp extends Utils.EventEmitter {
         
         const stats = {
             total: reservoirs.length,
-            average: reservoirs.reduce((sum, r) => sum + r.percentage, 0) / reservoirs.length,
+            ...Utils.getStorageSummary(reservoirs),
             sufficient: reservoirs.filter(r => r.percentage >= 80).length,
             normal: reservoirs.filter(r => r.percentage >= 50 && r.percentage < 80).length,
             attention: reservoirs.filter(r => r.percentage < 50).length
@@ -249,35 +281,35 @@ class ReservoirApp extends Utils.EventEmitter {
                 icon: 'bi-droplet-fill',
                 value: stats.total,
                 unit: '座',
-                label: '水庫總數',
+                label: '本次顯示水庫',
                 type: 'info'
             },
             {
                 icon: 'bi-graph-up',
-                value: stats.average.toFixed(1),
+                value: stats.weightedPercentage === null ? '--' : stats.weightedPercentage.toFixed(1),
                 unit: '%',
-                label: '平均蓄水率',
+                label: '合計蓄水率（容量加權）',
                 type: 'primary'
             },
             {
                 icon: 'bi-check-circle-fill',
                 value: stats.sufficient,
                 unit: '座',
-                label: '水位充足',
+                label: '蓄水率 ≥80%',
                 type: 'success'
             },
             {
                 icon: 'bi-dash-circle',
                 value: stats.normal,
                 unit: '座',
-                label: '水位正常',
+                label: '蓄水率 50–80%',
                 type: 'info'
             },
             {
                 icon: 'bi-exclamation-triangle-fill',
                 value: stats.attention,
                 unit: '座',
-                label: '需要關注',
+                label: '蓄水率 <50%',
                 type: stats.attention > 0 ? 'warning' : 'success'
             }
         ];
@@ -322,8 +354,10 @@ class ReservoirApp extends Utils.EventEmitter {
             this.elements.reservoirsGrid.innerHTML = `
                 <div class="empty-state">
                     <i class="empty-state-icon bi bi-droplet"></i>
-                    <h3 class="empty-state-title">暫無水庫資料</h3>
-                    <p class="empty-state-description">目前沒有符合條件的水庫資料</p>
+                    <h3 class="empty-state-title">${this.state.currentRegion === 'east' ? '本站尚未納入東部水庫' : '暫無可用水庫資料'}</h3>
+                    <p class="empty-state-description">${this.state.currentRegion === 'east'
+                        ? '東部不在本站目前的 20 座水庫對照清單內；這不代表東部沒有水庫、蓄水量為零或官方 API 故障。'
+                        : '目前沒有通過資料檢查的水庫快照，不能據此判斷水情。請查看上方資料狀態。'}</p>
                 </div>
             `;
             return;
@@ -337,7 +371,7 @@ class ReservoirApp extends Utils.EventEmitter {
             const status = Utils.getWaterLevelText(reservoir.percentage);
             
             // 計算進度條樣式
-            const progressWidth = Math.max(2, reservoir.percentage); // 最少顯示2%避免看不見
+            const progressWidth = Math.min(100, Math.max(0, reservoir.percentage)); // 僅限制繪圖寬度，不改寫數值
             
             // 計算水位指示器
             const maxDrops = 5;
@@ -402,7 +436,7 @@ class ReservoirApp extends Utils.EventEmitter {
                             </div>
                             <div class="detail-item">
                                 <i class="detail-icon bi bi-droplet-half"></i>
-                                <div class="detail-label">目前水量</div>
+                                <div class="detail-label">觀測蓄水量</div>
                                 <div class="detail-value">
                                     ${Utils.formatNumber(reservoir.effective_water_storage)}
                                     <span class="detail-unit">萬m³</span>
@@ -417,7 +451,7 @@ class ReservoirApp extends Utils.EventEmitter {
                             </div>
                             <div class="detail-item">
                                 <i class="detail-icon bi bi-activity"></i>
-                                <div class="detail-label">水位狀態</div>
+                                <div class="detail-label">蓄水率區間</div>
                                 <div class="detail-value" style="color: ${color}">
                                     ${status}
                                 </div>
@@ -427,7 +461,11 @@ class ReservoirApp extends Utils.EventEmitter {
                         <!-- 更新時間 -->
                         <div class="reservoir-update-time">
                             <i class="bi bi-clock"></i>
-                            最後更新：${reservoir.update_time}
+                            <div>
+                                <p>水量觀測：${Utils.formatTaipeiTime(reservoir.observed_at)}</p>
+                                <p class="observation-age">${Utils.getObservationStatus(reservoir.observed_at)}</p>
+                                <p>容量資料：${Utils.formatTaipeiTime(reservoir.capacity_recorded_at)}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -453,7 +491,7 @@ class ReservoirApp extends Utils.EventEmitter {
         this.elements.alertsContainer.innerHTML = alertReservoirs.map((reservoir, index) => {
             const isCritical = reservoir.percentage < 30;
             const alertType = isCritical ? 'critical' : 'warning';
-            const alertLevel = isCritical ? '嚴重缺水' : '水位偏低';
+            const alertLevel = isCritical ? '蓄水率低於 30%' : '蓄水率 30–50%';
             const alertColor = isCritical ? 'var(--danger-color)' : 'var(--warning-color)';
             
             return `
@@ -474,14 +512,11 @@ class ReservoirApp extends Utils.EventEmitter {
                             蓄水率：${reservoir.percentage.toFixed(1)}%
                         </div>
                         <div class="alert-description">
-                            ${isCritical 
-                                ? '水位嚴重偏低，請密切關注水情發展，並做好節水準備。'
-                                : '水位低於正常標準，建議關注後續水情變化。'
-                            }
+                            這是本站依蓄水率分組的提醒，不是官方限水或停水警報；需配合季節與供水調度判讀。
                         </div>
                     </div>
                     <div class="alert-footer">
-                        <span>更新：${reservoir.update_time}</span>
+                        <span>水量觀測：${Utils.formatTaipeiTime(reservoir.observed_at)}</span>
                         <a href="#" class="alert-action" onclick="app.scrollToReservoir('${reservoir.name}')">
                             <i class="bi bi-arrow-right"></i>
                             查看詳情

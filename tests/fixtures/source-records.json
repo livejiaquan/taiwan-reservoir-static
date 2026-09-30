@@ -1,0 +1,10 @@
+{
+  "description": "Synthetic regression fixture. Field names follow WRA datasets 45501 and 41568; not current water conditions.",
+  "sources": ["https://data.gov.tw/dataset/45501", "https://data.gov.tw/dataset/41568"],
+  "realtime": [
+    {"reservoiridentifier": "10201", "observationtime": "2026-09-30T12:00:00", "effectivewaterstoragecapacity": "120"}
+  ],
+  "daily": [
+    {"reservoiridentifier": "10201", "datetime": "2026-09-29T00:00:00", "capacity": "200"}
+  ]
+}
