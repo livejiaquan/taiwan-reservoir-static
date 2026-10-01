@@ -25,8 +25,15 @@ class ReservoirApp extends Utils.EventEmitter {
             missingStations: document.getElementById('missing-stations'),
             capacityTimeNote: document.getElementById('capacity-time-note'),
             refreshBtn: document.getElementById('refresh-btn'),
+            refreshLabel: document.getElementById('refresh-label'),
             statsGrid: document.getElementById('stats-grid'),
             overviewChart: document.getElementById('overview-chart'),
+            chartLibrary: document.getElementById('chart-library'),
+            overviewDetail: document.getElementById('overview-detail'),
+            overviewList: document.getElementById('overview-list'),
+            chartFrame: document.getElementById('chart-frame'),
+            chartStatus: document.getElementById('chart-status'),
+            regionSummary: document.getElementById('region-summary'),
             reservoirsGrid: document.getElementById('reservoirs-grid'),
             alertsSection: document.getElementById('alerts-section'),
             alertsContainer: document.getElementById('alerts-container'),
@@ -77,7 +84,17 @@ class ReservoirApp extends Utils.EventEmitter {
         }
         
         // 地區選擇按鈕
-        this.elements.regionBtns.forEach(btn => {
+        this.elements.regionBtns.forEach((btn, index) => {
+            btn.addEventListener('keydown', (event) => {
+                const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+                if (!keys.includes(event.key)) return;
+                event.preventDefault();
+                const buttons = this.elements.regionBtns;
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+                    : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+                buttons[next].focus();
+                this.setCurrentRegion(buttons[next].dataset.region);
+            });
             btn.addEventListener('click', (e) => {
                 const region = e.currentTarget.dataset.region;
                 this.setCurrentRegion(region);
@@ -87,7 +104,7 @@ class ReservoirApp extends Utils.EventEmitter {
         // 回到頂部按鈕
         if (this.elements.scrollToTop) {
             this.elements.scrollToTop.addEventListener('click', () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                window.scrollTo({ top: 0, behavior: Utils.prefersReducedMotion() ? 'auto' : 'smooth' });
             });
         }
         
@@ -123,13 +140,26 @@ class ReservoirApp extends Utils.EventEmitter {
             this.cleanup();
         });
         
-        // 鍵盤事件
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
-                e.preventDefault();
-                this.refreshData();
-            }
+        // A delegated button works with pointer, Enter and Space, including after rerenders.
+        [this.elements.overviewList, this.elements.alertsContainer, this.elements.reservoirsGrid].forEach(container => {
+            if (!container) return;
+            container.addEventListener('click', event => {
+                const target = event.target.closest('button[data-reservoir-target], button[data-reset-region]');
+                if (!target || !container.contains(target)) return;
+                if (target.hasAttribute('data-reset-region')) {
+                    this.setCurrentRegion('all');
+                    this.elements.regionBtns[0]?.focus();
+                } else this.scrollToReservoir(target.dataset.reservoirTarget);
+            });
         });
+        if (this.elements.chartLibrary) {
+            this.elements.chartLibrary.addEventListener('load', () => this.renderOverviewChart());
+        }
+        if (this.elements.overviewDetail) {
+            this.elements.overviewDetail.addEventListener('toggle', () => {
+                if (this.elements.overviewDetail.open) this.renderOverviewChart();
+            });
+        }
     }
     
     // 載入資料
@@ -169,7 +199,7 @@ class ReservoirApp extends Utils.EventEmitter {
         
         try {
             await this.loadData(true);
-            Utils.showNotification('資料已更新', 'success', 2000);
+            Utils.showNotification('已重新擷取；請確認水量觀測時間', 'info', 3000);
         } catch (error) {
             Utils.showNotification('更新失敗', 'error', 3000);
         }
@@ -184,21 +214,31 @@ class ReservoirApp extends Utils.EventEmitter {
             this.elements.refreshBtn.classList.toggle('loading', isLoading);
         }
         
+        if (this.elements.refreshLabel) this.elements.refreshLabel.textContent = isLoading ? '擷取中…' : '重新擷取資料';
         this.emit('loadingStateChange', isLoading);
     }
     
-    // 隱藏載入畫面
+    // Remove the normal-flow loader before revealing content, without an artificial layout jump.
     hideLoadingScreen() {
-        if (this.elements.loadingScreen && this.elements.mainContainer) {
-            Utils.fadeOut(this.elements.loadingScreen, 500);
-            this.elements.mainContainer.classList.remove('hidden');
-            
-            setTimeout(() => {
-                this.elements.loadingScreen.style.display = 'none';
-            }, 500);
-        }
+        if (this.elements.loadingScreen) this.elements.loadingScreen.hidden = true;
+        if (this.elements.mainContainer) this.elements.mainContainer.classList.remove('hidden');
     }
-    
+
+    // Retain a keyboard user's station target across background refreshes.
+    replaceContent(element, html) {
+        const active = document.activeElement;
+        const target = active && element.contains?.(active)
+            ? active.dataset?.reservoirTarget || active.dataset?.reservoir : null;
+        const resetFocused = active && element.contains?.(active) && active.hasAttribute?.('data-reset-region');
+        element.innerHTML = html;
+        if (!target && !resetFocused) return;
+        const replacement = [...element.querySelectorAll('[data-reservoir-target], [data-reservoir], [data-reset-region]')]
+            .find(node => resetFocused ? node.hasAttribute?.('data-reset-region')
+                : (node.dataset.reservoirTarget || node.dataset.reservoir) === target);
+        if (replacement) replacement.focus({ preventScroll: true });
+        else this.elements.refreshBtn?.focus({ preventScroll: true });
+    }
+
     // 設置當前地區
     setCurrentRegion(region) {
         this.state.currentRegion = region;
@@ -257,83 +297,71 @@ class ReservoirApp extends Utils.EventEmitter {
         }
     }
 
-    // 渲染統計卡片
+    // A volume-weighted focal point; the numerator and denominator remain inspectable.
     renderStats() {
         if (!this.elements.statsGrid) return;
-        
         const reservoirs = Object.values(this.state.data);
-        
-        if (reservoirs.length === 0) {
-            this.elements.statsGrid.innerHTML = '<div class="empty-state">暫無統計資料</div>';
+        if (!reservoirs.length) {
+            this.elements.statsGrid.innerHTML = '<div class="empty-state"><h3 class="empty-state-title">暫無統計資料</h3><p class="empty-state-description">資料未通過檢查前，不推算蓄水量或合計蓄水率。可使用頁首按鈕重新擷取。</p></div>';
             return;
         }
-        
-        const stats = {
-            total: reservoirs.length,
-            ...Utils.getStorageSummary(reservoirs),
-            sufficient: reservoirs.filter(r => r.percentage >= 80).length,
-            normal: reservoirs.filter(r => r.percentage >= 50 && r.percentage < 80).length,
-            attention: reservoirs.filter(r => r.percentage < 50).length
-        };
-        
-        const statsData = [
-            {
-                icon: 'bi-droplet-fill',
-                value: stats.total,
-                unit: '座',
-                label: '本次顯示水庫',
-                type: 'info'
-            },
-            {
-                icon: 'bi-graph-up',
-                value: stats.weightedPercentage === null ? '--' : stats.weightedPercentage.toFixed(1),
-                unit: '%',
-                label: '合計蓄水率（容量加權）',
-                type: 'primary'
-            },
-            {
-                icon: 'bi-check-circle-fill',
-                value: stats.sufficient,
-                unit: '座',
-                label: '蓄水率 ≥80%',
-                type: 'success'
-            },
-            {
-                icon: 'bi-dash-circle',
-                value: stats.normal,
-                unit: '座',
-                label: '蓄水率 50–80%',
-                type: 'info'
-            },
-            {
-                icon: 'bi-exclamation-triangle-fill',
-                value: stats.attention,
-                unit: '座',
-                label: '蓄水率 <50%',
-                type: stats.attention > 0 ? 'warning' : 'success'
-            }
+        const summary = Utils.getStorageSummary(reservoirs);
+        const value = summary.weightedPercentage;
+        const width = value === null ? 0 : Math.min(100, Math.max(0, value));
+        const ranges = [
+            { label: '蓄水率 ≥80%', count: reservoirs.filter(r => r.percentage >= 80).length, color: '#176b59' },
+            { label: '蓄水率 50–未滿80%', count: reservoirs.filter(r => r.percentage >= 50 && r.percentage < 80).length, color: '#176170' },
+            { label: '蓄水率 <50%', count: reservoirs.filter(r => r.percentage < 50).length, color: '#955000' }
         ];
-        
-        this.elements.statsGrid.innerHTML = statsData.map((stat, index) => `
-            <div class="stat-card ${stat.type} animate-slide-up" style="animation-delay: ${index * 0.1}s">
-                <i class="stat-card-icon bi ${stat.icon}"></i>
-                <div class="stat-card-value">
-                    ${stat.value}
-                    <span class="stat-card-unit">${stat.unit}</span>
-                </div>
-                <div class="stat-card-label">${stat.label}</div>
+        const expected = this.state.metadata?.expected || 20;
+        this.elements.statsGrid.innerHTML = `
+            <div class="storage-summary">
+                <h3>合計蓄水率（容量加權）</h3>
+                <p class="storage-value">${value === null ? '--' : value.toFixed(1)}<span>%</span></p>
+                <div class="storage-scale" aria-hidden="true" style="--progress-width: ${width}%"><span></span></div>
+                <div class="storage-scale-labels" aria-hidden="true"><span>0</span><span>有效容量 100%</span></div>
+                <dl class="storage-volumes">
+                    <div><dt>觀測蓄水量合計</dt><dd>${Utils.formatNumber(summary.totalStorage)}<span>萬立方公尺</span></dd></div>
+                    <div><dt>有效容量合計</dt><dd>${Utils.formatNumber(summary.totalCapacity)}<span>萬立方公尺</span></dd></div>
+                </dl>
+                <p class="storage-caption">${reservoirs.length}/${expected} 座清單內水庫的水量 ÷ 容量；非全台總量、非同時刻觀測。${value > 100 ? '合計超過 100%，數值如實保留，水量尺僅畫至 100%。' : ''}</p>
             </div>
-        `).join('');
+            <div class="distribution-summary">
+                <h3>同一份快照，涵蓋哪些水庫？</h3>
+                <p>本次顯示 <span class="coverage-count">${reservoirs.length}/${expected} 座</span>清單內水庫${reservoirs.length < expected ? '；部分資料缺漏，詳見上方未顯示清單' : ''}。</p>
+                <dl class="distribution-list">${ranges.map(range => `
+                    <div class="distribution-row" style="--range-color: ${range.color}"><dt>${range.label}</dt><dd>${range.count} <span>座</span></dd></div>
+                `).join('')}</dl>
+                <p>僅按百分比分組，不能單獨判定乾旱、限水或供水安全。</p>
+            </div>`;
     }
-    
-    // 渲染總覽圖表
+
     renderOverviewChart() {
-        if (!this.elements.overviewChart || Object.keys(this.state.data).length === 0) return;
-        
-        // 使用圖表管理器創建圖表
-        window.chartManager.createOverviewChart('overview-chart', this.state.data);
+        const reservoirs = Object.values(this.state.data).sort((a, b) => a.percentage - b.percentage);
+        // Native text is always present, independent of Chart.js, fonts or a pointing device.
+        if (this.elements.overviewList) {
+            this.replaceContent(this.elements.overviewList, reservoirs.length ? reservoirs.map(reservoir => `
+                <button type="button" class="overview-row" data-reservoir-target="${Utils.escapeHTML(reservoir.name)}" aria-label="查看${Utils.escapeHTML(reservoir.name)}，蓄水率 ${reservoir.percentage.toFixed(1)}%">
+                    <span>${Utils.escapeHTML(reservoir.name)}</span><strong>${reservoir.percentage.toFixed(1)}% <span aria-hidden="true">↗</span></strong>
+                </button>`).join('') : '<p class="chart-note">尚無可用資料，未繪製比較圖。</p>');
+        }
+        if (this.elements.chartFrame) this.elements.chartFrame.hidden = !reservoirs.length;
+        if (!reservoirs.length) {
+            if (this.elements.chartStatus) this.elements.chartStatus.textContent = '尚無可用資料，未繪製比較圖。';
+            return;
+        }
+        if (!this.elements.overviewChart || (this.elements.overviewDetail && !this.elements.overviewDetail.open)) return;
+        if (this.elements.chartFrame) {
+            this.elements.chartFrame.hidden = false;
+            this.elements.chartFrame.style.height = `${Math.max(320, reservoirs.length * 32 + 70)}px`;
+        }
+        const chart = window.chartManager.createOverviewChart('overview-chart', this.state.data);
+        if (this.elements.chartFrame) this.elements.chartFrame.hidden = !chart;
+        if (this.elements.chartStatus) this.elements.chartStatus.textContent = chart
+            ? '依蓄水率由低至高排列；圖表可點選，下方數值清單也可用鍵盤跳至完整觀測記錄。'
+            : '圖表暫時無法載入。下方仍保留完整數值與水庫跳轉，資料判讀不受影響。';
     }
-    
+
     // 渲染水庫網格
     renderReservoirGrid() {
         if (!this.elements.reservoirsGrid) return;
@@ -349,130 +377,57 @@ class ReservoirApp extends Utils.EventEmitter {
         }
         
         const reservoirs = Object.values(filteredData);
-        
-        if (reservoirs.length === 0) {
-            this.elements.reservoirsGrid.innerHTML = `
+        if (this.elements.regionSummary) {
+            const labels = { all: '全部', north: '北部', central: '中部', south: '南部', east: '東部' };
+            const expected = { all: 20, north: 5, central: 7, south: 8 };
+            this.elements.regionSummary.textContent = this.state.currentRegion === 'east'
+                ? '東部尚未納入本站清單，無法由此判斷東部水情。'
+                : `${labels[this.state.currentRegion]} · ${Object.keys(this.state.data).length ? `本次顯示 ${reservoirs.length}/${expected[this.state.currentRegion]} 座清單內水庫` : '尚無可用快照'}。各庫水量與容量時間分開列示。`;
+        }
+        if (!reservoirs.length) {
+            this.replaceContent(this.elements.reservoirsGrid, `
                 <div class="empty-state">
-                    <i class="empty-state-icon bi bi-droplet"></i>
                     <h3 class="empty-state-title">${this.state.currentRegion === 'east' ? '本站尚未納入東部水庫' : '暫無可用水庫資料'}</h3>
                     <p class="empty-state-description">${this.state.currentRegion === 'east'
                         ? '東部不在本站目前的 20 座水庫對照清單內；這不代表東部沒有水庫、蓄水量為零或官方 API 故障。'
-                        : '目前沒有通過資料檢查的水庫快照，不能據此判斷水情。請查看上方資料狀態。'}</p>
-                </div>
-            `;
+                        : Object.keys(this.state.data).length
+                            ? '本次快照未包含此地區的可用水庫記錄；缺資料不代表蓄水量為零。其他地區資料仍可查看。'
+                            : '目前沒有通過資料檢查的水庫快照，不能據此判斷水情。請查看上方資料狀態。'}</p>
+                    ${this.state.currentRegion !== 'all' ? '<button type="button" class="empty-reset" data-reset-region>查看全部清單</button>' : ''}
+                </div>`);
             return;
         }
-        
-        // 按蓄水率排序
         reservoirs.sort((a, b) => b.percentage - a.percentage);
-        
-        this.elements.reservoirsGrid.innerHTML = reservoirs.map((reservoir, index) => {
+        this.replaceContent(this.elements.reservoirsGrid, reservoirs.map(reservoir => {
             const color = Utils.getWaterLevelColor(reservoir.percentage);
             const status = Utils.getWaterLevelText(reservoir.percentage);
-            
-            // 計算進度條樣式
-            const progressWidth = Math.min(100, Math.max(0, reservoir.percentage)); // 僅限制繪圖寬度，不改寫數值
-            
-            // 計算水位指示器
-            const maxDrops = 5;
-            const activeDrops = Math.ceil((reservoir.percentage / 100) * maxDrops);
-            const waterDrops = Array.from({length: maxDrops}, (_, i) => 
-                `<div class="water-drop ${i < activeDrops ? 'active' : ''}" style="background-color: ${color}"></div>`
-            ).join('');
-            
-            // 狀態樣式
-            let statusBgColor, statusTextColor;
-            if (reservoir.percentage >= 80) {
-                statusBgColor = 'rgba(16, 185, 129, 0.1)';
-                statusTextColor = '#059669';
-            } else if (reservoir.percentage >= 50) {
-                statusBgColor = 'rgba(59, 130, 246, 0.1)';
-                statusTextColor = '#3b82f6';
-            } else if (reservoir.percentage >= 30) {
-                statusBgColor = 'rgba(245, 158, 11, 0.1)';
-                statusTextColor = '#f59e0b';
-            } else {
-                statusBgColor = 'rgba(239, 68, 68, 0.1)';
-                statusTextColor = '#ef4444';
-            }
-            
+            const progressWidth = Math.min(100, Math.max(0, reservoir.percentage)); // Only clamp the drawing, never the reading.
+            const age = Utils.getObservationStatus(reservoir.observed_at);
             return `
-                <div class="reservoir-card animate-slide-up" 
-                     data-reservoir="${reservoir.name}"
-                     style="animation-delay: ${index * 0.1}s">
+                <article class="reservoir-card" data-reservoir="${Utils.escapeHTML(reservoir.name)}" tabindex="-1" aria-label="${Utils.escapeHTML(reservoir.name)}觀測記錄">
                     <div class="reservoir-card-header">
-                        <div class="reservoir-name">
-                            <i class="bi bi-droplet-fill"></i>
-                            ${reservoir.name}
-                        </div>
-                        <div class="reservoir-location">
-                            <i class="bi bi-geo-alt"></i>
-                            ${reservoir.county}
-                        </div>
+                        <h3 class="reservoir-name">${Utils.escapeHTML(reservoir.name)}</h3>
+                        <p class="reservoir-location">${Utils.escapeHTML(reservoir.county)}</p>
                     </div>
                     <div class="reservoir-card-body">
-                        <!-- 進度條區域 -->
                         <div class="progress-section">
-                            <div class="water-bar" style="--progress-width: ${progressWidth}%; --progress-color: ${color}; --progress-soft: ${statusBgColor};">
-                                <div class="water-bar-fill"></div>
-                                <div class="water-bar-wave"></div>
-                                <div class="water-bar-shine"></div>
-                                <div class="water-bar-content">
-                                    <strong>${reservoir.percentage.toFixed(1)}<span>%</span></strong>
-                                    <small>${status}</small>
-                                </div>
-                            </div>
+                            <div class="water-bar-content"><strong><span class="sr-only">蓄水率 </span>${reservoir.percentage.toFixed(1)}<span>%</span></strong><small>${status}</small></div>
+                            <div class="water-bar" aria-hidden="true" style="--progress-width: ${progressWidth}%; --progress-color: ${color}"><div class="water-bar-fill"></div></div>
+                            ${reservoir.percentage > 100 ? '<p class="over-capacity-note">超過有效容量；數值如實保留，水量尺僅畫至 100%。</p>' : ''}
                         </div>
-                        
-                        <!-- 詳細資訊 -->
-                        <div class="reservoir-details">
-                            <div class="detail-item">
-                                <i class="detail-icon bi bi-bucket-fill"></i>
-                                <div class="detail-label">有效容量</div>
-                                <div class="detail-value">
-                                    ${Utils.formatNumber(reservoir.effective_capacity)}
-                                    <span class="detail-unit">萬m³</span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="detail-icon bi bi-droplet-half"></i>
-                                <div class="detail-label">觀測蓄水量</div>
-                                <div class="detail-value">
-                                    ${Utils.formatNumber(reservoir.effective_water_storage)}
-                                    <span class="detail-unit">萬m³</span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="detail-icon bi bi-speedometer2"></i>
-                                <div class="detail-label">蓄水率</div>
-                                <div class="detail-value" style="color: ${color}">
-                                    ${Utils.formatPercentage(reservoir.percentage)}
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="detail-icon bi bi-activity"></i>
-                                <div class="detail-label">蓄水率區間</div>
-                                <div class="detail-value" style="color: ${color}">
-                                    ${status}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 更新時間 -->
+                        <dl class="reservoir-details">
+                            <div><dt class="detail-label">觀測蓄水量</dt><dd class="detail-value">${Utils.formatNumber(reservoir.effective_water_storage)}<span class="detail-unit">萬立方公尺</span></dd></div>
+                            <div><dt class="detail-label">有效容量</dt><dd class="detail-value">${Utils.formatNumber(reservoir.effective_capacity)}<span class="detail-unit">萬立方公尺</span></dd></div>
+                        </dl>
                         <div class="reservoir-update-time">
-                            <i class="bi bi-clock"></i>
-                            <div>
-                                <p>水量觀測：${Utils.formatTaipeiTime(reservoir.observed_at)}</p>
-                                <p class="observation-age">${Utils.getObservationStatus(reservoir.observed_at)}</p>
-                                <p>容量資料：${Utils.formatTaipeiTime(reservoir.capacity_recorded_at)}</p>
-                            </div>
+                            <p>水量觀測：${Utils.formatTaipeiTime(reservoir.observed_at)}<br><span class="observation-age${age === '6 小時內觀測' ? '' : ' delayed'}">${age}</span></p>
+                            <p>容量資料：${Utils.formatTaipeiTime(reservoir.capacity_recorded_at)}</p>
                         </div>
                     </div>
-                </div>
-            `;
-        }).join('');
+                </article>`;
+        }).join(''));
     }
-    
+
     // 渲染預警資訊
     renderAlerts() {
         if (!this.elements.alertsContainer) return;
@@ -482,32 +437,30 @@ class ReservoirApp extends Utils.EventEmitter {
             .sort((a, b) => a.percentage - b.percentage);
         
         if (alertReservoirs.length === 0) {
+            this.replaceContent(this.elements.alertsContainer, '');
             this.elements.alertsSection.style.display = 'none';
             return;
         }
         
         this.elements.alertsSection.style.display = 'block';
         
-        this.elements.alertsContainer.innerHTML = alertReservoirs.map((reservoir, index) => {
+        this.replaceContent(this.elements.alertsContainer, alertReservoirs.map(reservoir => {
             const isCritical = reservoir.percentage < 30;
             const alertType = isCritical ? 'critical' : 'warning';
-            const alertLevel = isCritical ? '蓄水率低於 30%' : '蓄水率 30–50%';
-            const alertColor = isCritical ? 'var(--danger-color)' : 'var(--warning-color)';
+            const alertLevel = isCritical ? '蓄水率低於 30%' : '蓄水率 30–未滿50%';
             
             return `
-                <div class="alert-card ${alertType} animate-slide-left" 
-                     style="animation-delay: ${index * 0.1}s">
+                <article class="alert-card ${alertType}">
                     <div class="alert-header">
                         <div class="alert-icon ${alertType}">
                             <i class="bi ${isCritical ? 'bi-exclamation-triangle-fill' : 'bi-exclamation-circle-fill'}"></i>
                         </div>
                         <div>
-                            <div class="alert-title">${reservoir.name}</div>
+                            <h3 class="alert-title">${Utils.escapeHTML(reservoir.name)}</h3>
                             <div class="alert-level">${alertLevel}</div>
                         </div>
                     </div>
                     <div class="alert-content">
-                        <div class="alert-reservoir">${reservoir.county} ${reservoir.name}</div>
                         <div class="alert-percentage ${alertType}">
                             蓄水率：${reservoir.percentage.toFixed(1)}%
                         </div>
@@ -517,33 +470,27 @@ class ReservoirApp extends Utils.EventEmitter {
                     </div>
                     <div class="alert-footer">
                         <span>水量觀測：${Utils.formatTaipeiTime(reservoir.observed_at)}</span>
-                        <a href="#" class="alert-action" onclick="app.scrollToReservoir('${reservoir.name}')">
-                            <i class="bi bi-arrow-right"></i>
-                            查看詳情
-                        </a>
+                        <button type="button" class="alert-action" data-reservoir-target="${Utils.escapeHTML(reservoir.name)}" aria-label="查看${Utils.escapeHTML(reservoir.name)}詳情">查看詳情 ↗</button>
                     </div>
-                </div>
+                </article>
             `;
-        }).join('');
+        }).join(''));
     }
     
-    // 滾動到指定水庫
+    // Reveal a hidden target, then move focus as well as the viewport.
     scrollToReservoir(reservoirName) {
-        const card = document.querySelector(`[data-reservoir="${reservoirName}"]`);
-        if (card) {
-            Utils.scrollToElement(card, 600);
-            
-            // 高亮效果
-            card.style.outline = '3px solid var(--primary-color)';
-            card.style.outlineOffset = '4px';
-            
-            setTimeout(() => {
-                card.style.outline = '';
-                card.style.outlineOffset = '';
-            }, 3000);
+        const reservoir = Object.values(this.state.data).find(row => row.name === reservoirName);
+        if (!reservoir) return false;
+        if (this.state.currentRegion !== 'all' && this.state.currentRegion !== reservoir.region) {
+            this.setCurrentRegion(reservoir.region);
         }
+        const card = [...document.querySelectorAll('[data-reservoir]')].find(element => element.dataset.reservoir === reservoirName);
+        if (!card) return false;
+        card.focus({ preventScroll: true });
+        Utils.scrollToElement(card, 350);
+        return true;
     }
-    
+
     // 設置滾動監聽
     setupScrollListeners() {
         const scrollToTop = this.elements.scrollToTop;
@@ -609,7 +556,7 @@ class ReservoirApp extends Utils.EventEmitter {
     cleanup() {
         this.stopAutoRefresh();
         window.chartManager.destroyAllCharts();
-        this.removeAllListeners();
+        this.events = {};
     }
 }
 

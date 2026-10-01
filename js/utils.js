@@ -1,5 +1,13 @@
 // 工具函數集合
 
+function prefersReducedMotion() {
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+
 // 格式化數字，添加千位分隔符
 function formatNumber(num) {
     if (typeof num !== 'number') return '0';
@@ -80,8 +88,8 @@ function getWaterLevelColor(percentage) {
 // 取得水位狀態文字
 function getWaterLevelText(percentage) {
     if (percentage >= 80) return '蓄水率 ≥80%';
-    if (percentage >= 50) return '蓄水率 50–80%';
-    if (percentage >= 30) return '蓄水率 30–50%';
+    if (percentage >= 50) return '蓄水率 50–未滿80%';
+    if (percentage >= 30) return '蓄水率 30–未滿50%';
     return '蓄水率 <30%';
 }
 
@@ -120,6 +128,7 @@ function throttle(func, limit) {
 
 // 動畫函數 - 淡入效果
 function fadeIn(element, duration = 300) {
+    if (prefersReducedMotion()) { element.style.opacity = 1; element.style.display = 'block'; return; }
     element.style.opacity = 0;
     element.style.display = 'block';
     
@@ -141,6 +150,7 @@ function fadeIn(element, duration = 300) {
 
 // 動畫函數 - 淡出效果
 function fadeOut(element, duration = 300) {
+    if (prefersReducedMotion()) { element.style.opacity = 0; element.style.display = 'none'; return; }
     const start = performance.now();
     const startOpacity = parseFloat(getComputedStyle(element).opacity);
     
@@ -161,28 +171,9 @@ function fadeOut(element, duration = 300) {
 }
 
 // 滑動到指定元素
-function scrollToElement(element, duration = 800) {
-    const targetPosition = element.offsetTop - 80; // 預留一些空間
-    const startPosition = window.pageYOffset;
-    const distance = targetPosition - startPosition;
-    const startTime = performance.now();
-    
-    function animation(currentTime) {
-        const timeElapsed = currentTime - startTime;
-        const progress = Math.min(timeElapsed / duration, 1);
-        
-        // 使用緩動函數
-        const easeInOutQuad = progress => 
-            progress < 0.5 ? 2 * progress * progress : 1 - 2 * (1 - progress) * (1 - progress);
-        
-        window.scrollTo(0, startPosition + distance * easeInOutQuad(progress));
-        
-        if (progress < 1) {
-            requestAnimationFrame(animation);
-        }
-    }
-    
-    requestAnimationFrame(animation);
+function scrollToElement(element) {
+    // Native scrolling uses the real document position even inside positioned cards.
+    element.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
 }
 
 // 創建圓形進度條SVG
@@ -413,10 +404,10 @@ function showNotification(message, type = 'info', duration = 3000) {
     // 創建通知元素
     const notification = document.createElement('div');
     const colors = {
-        info: { bg: '#3b82f6', text: '#ffffff' },
-        success: { bg: '#10b981', text: '#ffffff' },
-        warning: { bg: '#f59e0b', text: '#ffffff' },
-        error: { bg: '#ef4444', text: '#ffffff' }
+        info: { bg: '#176170', text: '#ffffff' },
+        success: { bg: '#176b59', text: '#ffffff' },
+        warning: { bg: '#955000', text: '#ffffff' },
+        error: { bg: '#ac3434', text: '#ffffff' }
     };
     
     const color = colors[type] || colors.info;
@@ -432,11 +423,12 @@ function showNotification(message, type = 'info', duration = 3000) {
         transition: transform 0.3s ease-in-out;
         pointer-events: auto;
         cursor: pointer;
-        max-width: 300px;
+        max-width: min(300px, calc(100vw - 40px));
         word-wrap: break-word;
     `;
     
     notification.textContent = message;
+    notification.setAttribute('role', 'status');
     
     // 點擊關閉
     notification.addEventListener('click', () => {
@@ -474,6 +466,8 @@ function showNotification(message, type = 'info', duration = 3000) {
 
 // 匯出所有工具函數
 window.Utils = {
+    prefersReducedMotion,
+    escapeHTML,
     formatNumber,
     formatPercentage,
     parseSourceTime,

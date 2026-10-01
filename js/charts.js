@@ -5,6 +5,7 @@ class ChartManager {
         this.defaultOptions = {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false, // Source snapshots do not need an animated count-up, including reduced-motion users.
             plugins: {
                 legend: {
                     display: false
@@ -91,7 +92,8 @@ class ChartManager {
                             display: false
                         },
                         ticks: {
-                            color: '#1e293b',
+                            color: '#183d46',
+                            autoSkip: false,
                             font: {
                                 size: 14,
                                 weight: '500'
@@ -286,7 +288,8 @@ class ChartManager {
                             display: false
                         },
                         ticks: {
-                            color: '#1e293b',
+                            color: '#183d46',
+                            autoSkip: false,
                             font: {
                                 size: 14,
                                 weight: '500'
@@ -354,27 +357,11 @@ class ChartManager {
         }
     }
     
-    // 圖表點擊事件處理
+    // Use the same filter-aware, focus-moving route as the native value list.
     onChartClick(reservoir) {
-        // 可以在這裡添加點擊水庫時的行為
-        console.log('點擊了水庫:', reservoir.name);
-        
-        // 例如：滾動到對應的水庫卡片
-        const reservoirCard = document.querySelector(`[data-reservoir="${reservoir.name}"]`);
-        if (reservoirCard) {
-            Utils.scrollToElement(reservoirCard, 600);
-            
-            // 添加高亮效果
-            reservoirCard.style.outline = '3px solid #3b82f6';
-            reservoirCard.style.outlineOffset = '4px';
-            
-            setTimeout(() => {
-                reservoirCard.style.outline = '';
-                reservoirCard.style.outlineOffset = '';
-            }, 2000);
-        }
+        if (window.app) window.app.scrollToReservoir(reservoir.name);
     }
-    
+
     // 響應式調整
     resizeCharts() {
         this.charts.forEach(chart => {

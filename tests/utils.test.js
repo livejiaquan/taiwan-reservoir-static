@@ -61,3 +61,18 @@ test('Taipei rendering crosses UTC day and year boundaries independently of the 
     assert.equal(Utils.parseSourceTime('2027-01-01T00:15:00'), timestamp);
     assert.match(Utils.formatTaipeiTime(timestamp), /2027\/01\/01.*00:15.*台北 UTC\+8/);
 });
+
+test('reduced-motion preference skips imperative fading and scrolling animations', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'utils.js'), 'utf8');
+    const context = { window: { matchMedia: query => ({ matches: query === '(prefers-reduced-motion: reduce)' }) } };
+    vm.runInNewContext(source, context);
+    const utils = context.window.Utils;
+    const element = { style: {}, scrollIntoView(options) { this.behavior = options.behavior; } };
+    // No animation frame API exists in this context: any scheduled animation would fail.
+    utils.fadeOut(element);
+    assert.equal(element.style.display, 'none');
+    utils.fadeIn(element);
+    assert.equal(element.style.opacity, 1);
+    utils.scrollToElement(element);
+    assert.equal(element.behavior, 'auto');
+});

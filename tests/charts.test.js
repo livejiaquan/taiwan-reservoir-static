@@ -68,3 +68,10 @@ test('regional aggregation is weighted and historical chart never invents readin
     const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'charts.js'), 'utf8');
     assert.doesNotMatch(source, /Math\.random/);
 });
+
+test('snapshot charts never animate readings and expose every y-axis label', () => {
+    const { manager } = loadCharts();
+    const chart = manager.createOverviewChart('overview-chart', data);
+    assert.equal(chart.config.options.animation, false);
+    assert.equal(chart.config.options.scales.y.ticks.autoSkip, false);
+});

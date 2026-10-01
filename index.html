@@ -3,243 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣水庫即時監控系統</title>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap Icons -->
+    <title>台灣水庫觀測｜水量、時間與涵蓋範圍</title>
+    <meta name="description" content="以水利署資料查看本站 20 座水庫清單的觀測水量、容量加權蓄水率與資料時間。缺資料不代表零蓄水；不提供限水或停水判定。">
+    <meta name="author" content="Jiaquan">
+    <meta name="theme-color" content="#123d47">
+    <meta property="og:title" content="台灣水庫觀測">
+    <meta property="og:description" content="先確認時間與範圍，再讀懂水庫蓄水量。">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_TW">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    
-    <!-- 自定義樣式 -->
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/components.css">
-    
-    <!-- Meta tags -->
-    <meta name="description" content="台灣水庫即時監控系統 - 提供全台主要水庫的即時蓄水情況、統計資料和視覺化圖表。響應式設計，支援各種設備。">
-    <meta name="keywords" content="台灣水庫, 蓄水率, 水資源, 即時監控, 水利署, 水情, 缺水, 防災">
-    <meta name="author" content="Jiaquan">
-    <meta name="robots" content="index, follow">
-    <meta name="language" content="zh-TW">
-    
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="台灣水庫即時監控系統">
-    <meta property="og:description" content="即時監控全台主要水庫蓄水情況，提供清晰的數據視覺化和預警資訊">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://github.com/livejiaquan010313/taiwan-reservoir-static">
-    <meta property="og:image" content="https://github.com/livejiaquan010313/taiwan-reservoir-static/preview.jpg">
-    <meta property="og:locale" content="zh_TW">
-    
-    <!-- Twitter Card Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="台灣水庫即時監控系統">
-    <meta name="twitter:description" content="即時監控全台主要水庫蓄水情況">
-    <meta name="twitter:image" content="https://github.com/livejiaquan010313/taiwan-reservoir-static/preview.jpg">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+    <script async id="chart-library" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script defer src="js/utils.js"></script>
+    <script defer src="js/api.js"></script>
+    <script defer src="js/charts.js"></script>
+    <script defer src="js/main.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
 </head>
 <body>
-    <!-- 載入畫面 -->
-    <div id="loading-screen" class="loading-screen">
+    <a class="skip-link" href="#snapshot">跳至水情資料</a>
+    <noscript><div class="container noscript-notice">需要啟用 JavaScript 才能讀取水庫資料。本站不提供預設水情值，請查看<a href="https://www.wra.gov.tw/">水利署公告</a>。</div></noscript>
+    <div id="loading-screen" class="loading-screen" role="status">
         <div class="loading-container">
-            <div class="water-drop-loader">
-                <div class="drop"></div>
-                <div class="wave"></div>
-            </div>
-            <h3>載入中...</h3>
-            <p>正在獲取最新水庫資料</p>
+            <span class="loading-mark" aria-hidden="true"></span>
+            <h1>讀取水庫觀測</h1>
+            <p>正在向水利署擷取資料，尚未確認水情</p>
         </div>
     </div>
 
-    <!-- 主容器 -->
     <div id="main-container" class="main-container hidden">
-        <!-- 頁面標題區域 -->
         <header class="header-section">
             <div class="container">
+                <div class="masthead">
+                    <a class="brand" href="#snapshot"><i class="bi bi-droplet-half" aria-hidden="true"></i> 台灣水庫觀測</a>
+                    <nav class="page-nav" aria-label="頁面導覽">
+                        <a href="#explorer">找水庫</a>
+                        <a href="#sources">資料說明</a>
+                    </nav>
+                </div>
                 <div class="title-container">
-                    <h1 class="main-title">
-                        <i class="bi bi-droplet-fill water-icon"></i>
-                        台灣水庫即時監控系統
-                    </h1>
-                    <p class="subtitle">Taiwan Reservoir Real-time Monitoring System</p>
-                    <div class="update-info">
-                        <i class="bi bi-clock"></i>
-                        <span>上次成功擷取：</span>
-                        <span id="last-update-time">--</span>
-                        <button id="refresh-btn" class="refresh-btn" title="立即重新擷取" aria-label="立即重新擷取官方資料">
-                            <i class="bi bi-arrow-clockwise"></i>
+                    <div>
+                        <p class="eyebrow">TAIWAN RESERVOIR OBSERVATIONS</p>
+                        <h1 class="main-title">水量有多滿，<br>也要看何時觀測。</h1>
+                        <p class="subtitle">從本站水庫清單，讀懂水量、容量與資料範圍。</p>
+                    </div>
+                    <div class="refresh-panel">
+                        <button id="refresh-btn" class="refresh-btn" type="button" aria-label="立即重新擷取官方資料">
+                            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                            <span id="refresh-label">重新擷取資料</span>
                         </button>
+                        <p class="update-info">上次成功擷取<br><span id="last-update-time">--</span></p>
+                        <p class="refresh-note">每 5 分鐘嘗試擷取，非來源更新頻率</p>
                     </div>
                 </div>
             </div>
         </header>
 
-        <section class="data-status-section" aria-live="polite">
-            <div class="container">
-                <div id="data-status" class="data-status unavailable" role="status">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <span>目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。</span>
+        <main id="snapshot" tabindex="-1">
+            <section class="data-status-section" aria-label="資料時間與涵蓋範圍">
+                <div class="container">
+                    <div id="data-status" class="data-status unavailable" role="status">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                        <span>目前無法確認官方資料，本站不顯示模擬水情；請以水利署公告為準。</span>
+                    </div>
+                    <div class="data-context">
+                        <div class="context-grid">
+                            <div>
+                                <h2 class="context-label">水量觀測時間</h2>
+                                <p id="observation-range">未知，尚無可用快照</p>
+                            </div>
+                            <div>
+                                <h2 class="context-label">本次涵蓋範圍</h2>
+                                <p id="coverage-summary">尚無可用快照，涵蓋狀況未知。</p>
+                                <p class="context-note">本站清單共 20 座；尚未納入東部及離島</p>
+                            </div>
+                        </div>
+                        <p id="missing-stations" class="missing-stations"></p>
+                        <p id="capacity-time-note" class="capacity-time-note"></p>
+                    </div>
                 </div>
-                <div class="data-context">
-                    <p><strong>水量觀測時間：</strong><span id="observation-range">未知，尚無可用快照</span></p>
-                    <p id="coverage-summary">尚無可用快照，涵蓋狀況未知。</p>
-                    <p id="missing-stations"></p>
-                    <p id="capacity-time-note"></p>
-                    <details>
-                        <summary>資料範圍與判讀方式</summary>
-                        <p>本站目前對照北部 5 座、中部 7 座、南部 8 座，共 20 座水庫，尚未納入東部及離島；不代表全台所有水庫。</p>
-                        <p>水量來自<a href="https://data.gov.tw/dataset/45501" target="_blank" rel="noopener">水庫水情資料</a>，有效容量來自<a href="https://data.gov.tw/dataset/41568" target="_blank" rel="noopener">水庫每日營運狀況</a>。兩份資料時間可能不同，容量資料的時間列在各卡片。</p>
-                        <p>本站每 5 分鐘嘗試擷取，並非官方每 5 分鐘更新。所有時間均顯示為台北時間（UTC+8）；來源未附時區時按台北時間解讀。</p>
-                        <p>超過 6 小時的觀測會加註提醒。本站至少需 10/20 座可用資料，且每筆觀測不得超過 48 小時或超前 1 小時，否則整份快照不顯示。這是本站資料檢查門檻，並非官方水情標準。</p>
-                        <p>合計蓄水率 = 本次顯示水庫的蓄水量總和 ÷ 有效容量總和，不取各庫百分比的算術平均。觀測時間不同的水庫合計，不能視為同一時刻或全台總量。</p>
-                        <p>蓄水率不能單獨判斷乾旱、限水或自來水停水；同一百分比在不同季節的意義也不同。本站未提供歷年同期比較，請以水利署及供水單位公告為準。</p>
+            </section>
+
+            <section class="stats-section" aria-labelledby="overview-heading">
+                <div class="container">
+                    <div class="section-header">
+                        <div><p class="eyebrow">01 / SNAPSHOT</p><h2 id="overview-heading">本次水量概況</h2></div>
+                        <p>僅合計本次可用資料<br> 各庫觀測可能來自不同時刻</p>
+                    </div>
+                    <div class="stats-grid" id="stats-grid"></div>
+                    <details class="overview-detail" id="overview-detail">
+                        <summary>逐庫比較蓄水率 <span>圖表與可操作的數值清單</span></summary>
+                        <div class="overview-content">
+                            <p id="chart-status" class="chart-note">圖表與清單依蓄水率由低至高排列；選擇水庫可跳至完整觀測記錄。</p>
+                            <div class="chart-frame" id="chart-frame">
+                                <canvas id="overview-chart" role="img" aria-label="各水庫蓄水率比較；完整數值與跳轉按鈕在下方清單">完整數值請見下方水庫清單。</canvas>
+                            </div>
+                            <div id="overview-list" class="overview-list" aria-label="蓄水率數值清單"></div>
+                        </div>
                     </details>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- 統計卡片區域 -->
-        <section class="stats-section">
-            <div class="container">
-                <div class="stats-grid" id="stats-grid">
-                    <!-- 統計卡片將由 JavaScript 動態生成 -->
+            <section class="regions-section" id="explorer" aria-labelledby="explorer-heading">
+                <div class="container">
+                    <div class="section-header">
+                        <div><p class="eyebrow">02 / EXPLORE</p><h2 id="explorer-heading">找一座水庫，細看水量</h2></div>
+                        <p>地區依本站清單分類<br> 蓄水率高至低排列</p>
+                    </div>
+                    <div class="region-selector" role="group" aria-label="依地區篩選水庫">
+                        <button type="button" class="region-btn active" data-region="all" aria-pressed="true" aria-controls="reservoirs-grid">全部</button>
+                        <button type="button" class="region-btn" data-region="north" aria-pressed="false" aria-controls="reservoirs-grid">北部</button>
+                        <button type="button" class="region-btn" data-region="central" aria-pressed="false" aria-controls="reservoirs-grid">中部</button>
+                        <button type="button" class="region-btn" data-region="south" aria-pressed="false" aria-controls="reservoirs-grid">南部</button>
+                        <button type="button" class="region-btn" data-region="east" aria-pressed="false" aria-controls="reservoirs-grid">東部（未納入）</button>
+                    </div>
+                    <p id="region-summary" class="region-summary" role="status">等待可用水庫資料</p>
+                    <div class="reservoirs-grid" id="reservoirs-grid"></div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- 總覽圖表區域 -->
-        <section class="overview-section">
-            <div class="container">
-                <div class="section-header">
-                    <h2>
-                        <i class="bi bi-bar-chart-fill"></i>
-                        本次水庫蓄水率總覽
-                    </h2>
-                    <p>僅顯示本次可用資料，範圍與觀測時間見上方說明</p>
+            <section class="alerts-section" id="alerts-section" aria-labelledby="alerts-heading" style="display:none">
+                <div class="container">
+                    <div class="section-header">
+                        <div><p class="eyebrow">READ WITH CONTEXT</p><h2 id="alerts-heading">低蓄水率提醒</h2></div>
+                        <p>依蓄水率分組<br> 不代表官方限水或停水警報</p>
+                    </div>
+                    <div class="alerts-container" id="alerts-container"></div>
                 </div>
-                <div class="chart-container">
-                    <canvas id="overview-chart"></canvas>
-                </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- 地區分類區域 -->
-        <section class="regions-section">
-            <div class="container">
-                <div class="section-header">
-                    <h2>
-                        <i class="bi bi-geo-alt-fill"></i>
-                        各地區水庫詳情
-                    </h2>
-                    <p>依本站水庫清單所在區域篩選</p>
+            <section class="sources-section" id="sources" aria-labelledby="sources-heading">
+                <div class="container">
+                    <div class="section-header">
+                        <div><p class="eyebrow">03 / METHODOLOGY</p><h2 id="sources-heading">數字從哪裡來</h2></div>
+                        <p>官方來源，本站計算<br> 保留時間與範圍的界線</p>
+                    </div>
+                    <div class="source-grid">
+                        <div class="source-card">
+                            <span class="source-index" aria-hidden="true">A</span>
+                            <h3>水量觀測</h3>
+                            <p>蓄水量採用<a href="https://data.gov.tw/dataset/45501" target="_blank" rel="noopener">水庫水情資料 ↗</a>，單位為萬立方公尺。每座水庫的原始觀測時間列在卡片中。</p>
+                        </div>
+                        <div class="source-card">
+                            <span class="source-index" aria-hidden="true">B</span>
+                            <h3>有效容量</h3>
+                            <p>容量採用<a href="https://data.gov.tw/dataset/41568" target="_blank" rel="noopener">水庫每日營運狀況 ↗</a>。容量資料與水量觀測時間可能不同，時間缺失時明示未知。</p>
+                        </div>
+                        <div class="source-card">
+                            <span class="source-index" aria-hidden="true">A ÷ B</span>
+                            <h3>容量加權合計</h3>
+                            <p>合計蓄水率 = 本次顯示水庫的蓄水量總和 ÷ 有效容量總和，不取各庫百分比的算術平均，也不是全台總量。</p>
+                        </div>
+                    </div>
+                    <details class="methodology">
+                        <summary>資料範圍、檢查門檻與判讀限制</summary>
+                        <div class="methodology-content">
+                            <p>本站目前對照北部 5 座、中部 7 座、南部 8 座，共 20 座水庫，尚未納入東部及離島；不代表全台所有水庫。缺資料不代表蓄水量為零。</p>
+                            <p>本站每 5 分鐘嘗試擷取，並非官方每 5 分鐘更新。所有時間均顯示為台北時間（UTC+8）；來源未附時區時按台北時間解讀。成功擷取時間不代表觀測更新時間。</p>
+                            <p>超過 6 小時的觀測會加註提醒。本站至少需 10/20 座可用資料，且每筆觀測不得超過 48 小時或超前 1 小時，否則整份快照不顯示。這是本站資料檢查門檻，並非官方水情標準。</p>
+                            <p>個別水庫超過 100% 的計算值如實保留；卡片與合計水量尺只限制繪圖長度，圖表座標則可延伸。各庫可能採用不同觀測時間，不能視為同一時刻的總量。</p>
+                            <p>蓄水率不能單獨判斷乾旱、限水或自來水停水；同一百分比在不同季節的意義也不同。本站未提供歷年同期比較，請以水利署及供水單位公告為準。</p>
+                        </div>
+                    </details>
                 </div>
-                
-                <!-- 地區選擇器 -->
-                <div class="region-selector">
-                    <button class="region-btn active" data-region="all" aria-pressed="true">全部</button>
-                    <button class="region-btn" data-region="north" aria-pressed="false">北部</button>
-                    <button class="region-btn" data-region="central" aria-pressed="false">中部</button>
-                    <button class="region-btn" data-region="south" aria-pressed="false">南部</button>
-                    <button class="region-btn" data-region="east" aria-pressed="false">東部（未納入）</button>
-                </div>
-                
-                <!-- 水庫卡片網格 -->
-                <div class="reservoirs-grid" id="reservoirs-grid">
-                    <!-- 水庫卡片將由 JavaScript 動態生成 -->
-                </div>
-            </div>
-        </section>
-
-        <!-- 預警資訊區域 -->
-        <section class="alerts-section" id="alerts-section">
-            <div class="container">
-                <div class="section-header">
-                    <h2>
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        低蓄水率提醒
-                    </h2>
-                    <p>本站依蓄水率分組，不代表官方限水或停水警報</p>
-                </div>
-                <div class="alerts-container" id="alerts-container">
-                    <!-- 預警卡片將由 JavaScript 動態生成 -->
-                </div>
-            </div>
-        </section>
-
-        <!-- 頁尾 -->
+            </section>
+        </main>
         <footer class="footer-section">
-            <div class="container">
-                <div class="footer-content">
-                    <div class="footer-info">
-                        <h4>台灣水庫即時監控系統</h4>
-                        <p>Taiwan Reservoir Real-time Monitoring System</p>
-                        <p>資料來源：經濟部水利署開放資料平臺</p>
-                        <p>本站每 5 分鐘嘗試擷取；來源更新頻率可能不同</p>
-                        <div class="data-disclaimer">
-                            <p><small>⚠️ 本系統資料僅供參考，實際狀況請以官方公告為準</small></p>
-                        </div>
-                    </div>
-                    <div class="footer-links">
-                        <h5>相關連結</h5>
-                        <ul>
-                            <li><a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">水利署官網</a></li>
-                            <li><a href="https://fhy.wra.gov.tw/" target="_blank" rel="noopener">防災資訊網</a></li>
-                            <li><a href="https://data.gov.tw/" target="_blank" rel="noopener">政府開放資料平臺</a></li>
-                            <li><a href="https://www.cwb.gov.tw/" target="_blank" rel="noopener">中央氣象局</a></li>
-                        </ul>
-                    </div>
-                    <div class="footer-tech">
-                        <h5>技術資訊</h5>
-                        <p>🚀 HTML5 + CSS3 + JavaScript</p>
-                        <p>📱 響應式設計，支援各種設備</p>
-                        <p>📊 Chart.js 數據視覺化</p>
-                        <p>🎨 Bootstrap Icons 圖標庫</p>
-                        <div class="version-info">
-                            <p><small>版本 v1.0.0 | 最後更新：2025年1月</small></p>
-                        </div>
-                    </div>
-                    <div class="footer-contact">
-                        <h5>關於專案</h5>
-                        <p>此專案為開源學習項目</p>
-                        <p>如有問題或建議，歡迎聯繫：</p>
-                        <div class="contact-info">
-                            <p>📧 livejiaquan010313@gmail.com</p>
-                            <p>🐙 <a href="https://github.com/livejiaquan010313/taiwan-reservoir-static" target="_blank" rel="noopener">GitHub Repository</a></p>
-                        </div>
-                        <div class="privacy-info">
-                            <p><small>🔒 本站不收集個人資料，僅使用localStorage快取</small></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="footer-bottom">
-                    <div class="copyright">
-                        <p>&copy; 2025 Taiwan Reservoir Monitor. 本專案採用 MIT License 授權.</p>
-                    </div>
-                    <div class="footer-meta">
-                        <p>
-                            <span>🌊 為台灣水資源監控盡一份心力</span> |
-                            <span>Made with ❤️ in Taiwan</span>
-                        </p>
-                    </div>
+            <div class="container footer-content">
+                <div><p class="footer-title">台灣水庫觀測</p><p>官方開放資料 · 獨立資訊整理 · 非官方水情警報</p></div>
+                <div class="footer-links">
+                    <a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">水利署官網 ↗</a>
+                    <a href="https://github.com/livejiaquan/taiwan-reservoir-static" target="_blank" rel="noopener">GitHub ↗</a>
                 </div>
             </div>
         </footer>
     </div>
-
-    <!-- 回到頂部按鈕 -->
-    <button id="scroll-to-top" class="scroll-to-top" title="回到頂部">
-        <i class="bi bi-chevron-up"></i>
-    </button>
-
-    <!-- JavaScript 模組 -->
-    <script src="js/utils.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/charts.js"></script>
-    <script src="js/main.js"></script>
+    <button id="scroll-to-top" class="scroll-to-top" type="button" aria-label="回到頁首" title="回到頁首"><i class="bi bi-chevron-up" aria-hidden="true"></i><span class="sr-only">回到頁首</span></button>
 </body>
 </html>
