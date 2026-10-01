@@ -1,0 +1,41 @@
+name: Development checks
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+  pull_request:
+
+# This workflow only verifies source. It never builds or deploys a Pages site.
+permissions:
+  contents: read
+
+concurrency:
+  group: development-checks-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-checks:
+    name: Offline checks (${{ matrix.timezone }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        timezone: [UTC, America/Los_Angeles, Asia/Taipei]
+    env:
+      TZ: ${{ matrix.timezone }}
+    steps:
+      - name: Check out source without retaining credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Check JavaScript syntax
+        run: find js data tests -type f -name '*.js' -print0 | xargs -0 -n 1 node --check
+      - name: Run offline regression and static asset checks
+        run: node --test tests/*.test.js

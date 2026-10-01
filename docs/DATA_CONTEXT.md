@@ -27,7 +27,7 @@
 ## 驗證界線
 
 - Node 內建測試：來源格式、時區、加權計算、快取、資料拒絕、render 字串與 Chart.js 設定。
-- 靜態資產存在與 JavaScript 語法檢查；沒有獨立 build 步驟或 CI workflow。
+- 靜態資產存在與 JavaScript 語法檢查；沒有獨立 build 步驟。開發分支 push／Pull Request 的 `Development checks` workflow 以 Node.js 24 在 UTC、洛杉磯及台北時區執行離線測試，涵蓋夏令時間與跨年邊界。測試 fixture 不作為水情發布，workflow 不部署正式站。
 - 雲端預覽受既有 loopback/受支援代理路徑限制，未繞過限制；本批沒有瀏覽器視覺或行動裝置實機通過的宣稱。合併前仍應檢查正常、部分資料、失敗、東部篩選與重複刷新畫面。
 
 

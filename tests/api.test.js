@@ -31,7 +31,9 @@ function loadReservoirAPI() {
         Map,
         Object,
         console: { log() {}, warn() {}, error() {} },
-        fetch,
+        fetch: async () => {
+            throw new Error('Unexpected live network request: regression tests must use synthetic fixtures');
+        },
         setTimeout,
         clearTimeout,
         Utils: {

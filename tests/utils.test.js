@@ -46,3 +46,18 @@ test('fractional seconds preserve ordering rather than collapsing observations',
     assert.equal(Utils.parseSourceTime('2026-09-30T12:00:00.9+08:00') - Utils.parseSourceTime('2026-09-30T12:00:00.100+08:00'), 800);
     assert.equal(Utils.parseSourceTime('2026-09-30T12:00:00.01'), Date.parse('2026-09-30T04:00:00.010Z'));
 });
+
+test('Taipei source times are not changed by the host daylight-saving gap or overlap', () => {
+    // These wall-clock times are absent or repeated in Los Angeles, but valid in Taipei.
+    assert.equal(Utils.parseSourceTime('2026-03-08T02:30:00'), Date.parse('2026-03-07T18:30:00Z'));
+    assert.equal(Utils.parseSourceTime('2026-11-01T01:30:00'), Date.parse('2026-10-31T17:30:00Z'));
+    const first = Utils.parseSourceTime('2026-11-01T01:30:00-07:00');
+    const second = Utils.parseSourceTime('2026-11-01T01:30:00-08:00');
+    assert.equal(second - first, 60 * 60 * 1000);
+});
+
+test('Taipei rendering crosses UTC day and year boundaries independently of the host timezone', () => {
+    const timestamp = Date.parse('2026-12-31T16:15:00Z');
+    assert.equal(Utils.parseSourceTime('2027-01-01T00:15:00'), timestamp);
+    assert.match(Utils.formatTaipeiTime(timestamp), /2027\/01\/01.*00:15.*台北 UTC\+8/);
+});

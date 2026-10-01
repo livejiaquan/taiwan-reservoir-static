@@ -189,10 +189,17 @@ taiwan-reservoir-static/
 本專案不需要打包或額外依賴。使用 Node.js 18+ 執行離線回歸與靜態檢查：
 
 ```bash
-node --test tests/*.test.js
+find js data tests -type f -name '*.js' -print0 | xargs -0 -n 1 node --check
+TZ=UTC node --test tests/*.test.js
 TZ=America/Los_Angeles node --test tests/*.test.js
 TZ=Asia/Taipei node --test tests/*.test.js
 git diff --check
 ```
 
 測試涵蓋 API 失敗、部分覆蓋、過期與未來觀測、日期格式與時區、來源排序、數值缺值、快取擷取時間、容量加權、東部空狀態、重複刷新及歷史圖不造數據。測試 fixture 是明確標示的合成資料，不代表當前水情。瀏覽器/CORS 和手機排版仍須另行驗證，Node 測試不能代替視覺檢查。
+
+### 開發分支 CI
+
+`.github/workflows/development-checks.yml` 在 `codex/**` 分支 push 與 Pull Request 執行上述離線檢查，使用 Node.js 24，分別設定 UTC、洛杉磯與台北時區。測試包括夏令時間跳時／重複時段、跨日與跨年，以及頁面引用的本機 CSS／JavaScript 資產。API 測試使用合成資料及網路替身，不查詢即時水情。
+
+此 workflow 僅具 `contents: read` 權限，checkout 不保留憑證，Actions 版本固定至 commit SHA；不使用 secrets、不安裝專案套件、不上傳測試資料或網站產物，也不部署 GitHub Pages。CI 通過不代表官方 API、瀏覽器 CORS 或視覺排版已驗證。
