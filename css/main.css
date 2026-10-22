@@ -1,16 +1,40 @@
-/* 台灣水庫水情：設計 token 與版面 */
+/* 台灣水庫水情：設計 token 與版面
+ *
+ * 字級只用一組階梯：12 / 14 / 16 / 18 / 22 / 28 / 36 / 64 / 96。
+ * 12px 只給圖表標註與座標軸。間距只用 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64；
+ * 水尺牆內 2px 的水柱間隙屬於圖形本身，不是版面間距。
+ * 主欄所有區塊貼齊同一條左緣，不用帶內距的卡片。
+ */
+
+/* Barlow Semi Condensed，SIL OFL 1.1（assets/fonts/OFL.txt）；只含數字、%、+、−、:、/ */
+@font-face {
+    font-family: "Barlow Semi Condensed";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("../assets/fonts/barlow-semi-condensed-500.woff2") format("woff2");
+    unicode-range: U+20, U+25, U+2B, U+2D-3A, U+2212;
+}
+
+@font-face {
+    font-family: "Barlow Semi Condensed";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("../assets/fonts/barlow-semi-condensed-600.woff2") format("woff2");
+    unicode-range: U+20, U+25, U+2B, U+2D-3A, U+2212;
+}
 
 :root {
-    --bg: #EDF2F5;
+    --bg: #FFFFFF;
     --surface: #FFFFFF;
-    --surface-2: #F5F8FA;
+    --surface-2: #F2F6F9;
     --ink: #0F2333;
     --ink-2: #46596A;
     --ink-3: #586B7D;
-    --line: #D6E0E7;
+    --line: #DCE4EA;
     --track: #DCE6ED;
     --water: #2B79B0;
-    --water-soft: #E3EFF8;
     --low: #B26B00;
     --low-ink: #8A4F00;
     --low-soft: #FFF2DC;
@@ -23,6 +47,16 @@
     --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", system-ui, sans-serif;
     --font-num: "Barlow Semi Condensed", "Arial Narrow", var(--font-sans);
 
+    --fs-12: 12px;
+    --fs-14: 14px;
+    --fs-16: 16px;
+    --fs-18: 18px;
+    --fs-22: 22px;
+    --fs-28: 28px;
+    --fs-36: 36px;
+    --fs-64: 64px;
+    --fs-96: 96px;
+
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -30,14 +64,19 @@
     --space-5: 24px;
     --space-6: 32px;
     --space-7: 48px;
+    --space-8: 64px;
 
-    --radius-panel: 16px;
-    --radius-row: 12px;
+    --gutter: 16px;
+    --container: 1240px;
     --ease-out: cubic-bezier(.2, .7, .2, 1);
 
+    /* 水尺牆尺寸；--wall-h 先保留整面牆的高度，避免水柱建立時版面跳動 */
     --tube-h: 168px;
-    --wall-h: 284px;
-    --wall-gutter: 30px;
+    --name-h: 64px;
+    --wall-h: 304px;
+    --wall-gutter: 32px;
+    --gauge-gap: 2px;
+    --group-gap: 8px;
 
     color-scheme: light;
 }
@@ -46,14 +85,13 @@
     :root:not([data-theme="light"]) {
         --bg: #0B1824;
         --surface: #112334;
-        --surface-2: #0E1E2D;
+        --surface-2: #12263A;
         --ink: #E4ECF2;
         --ink-2: #A6B8C7;
         --ink-3: #8DA0B1;
         --line: #213749;
         --track: #1A3246;
         --water: #4FA3DC;
-        --water-soft: #15324A;
         --low: #F2A33A;
         --low-ink: #F6B860;
         --low-soft: #3A2A12;
@@ -69,14 +107,13 @@
 :root[data-theme="dark"] {
     --bg: #0B1824;
     --surface: #112334;
-    --surface-2: #0E1E2D;
+    --surface-2: #12263A;
     --ink: #E4ECF2;
     --ink-2: #A6B8C7;
     --ink-3: #8DA0B1;
     --line: #213749;
     --track: #1A3246;
     --water: #4FA3DC;
-    --water-soft: #15324A;
     --low: #F2A33A;
     --low-ink: #F6B860;
     --low-soft: #3A2A12;
@@ -86,6 +123,18 @@
     --accent: #7CC0F0;
     --focus: #7CC0F0;
     color-scheme: dark;
+}
+
+@media (min-width: 720px) {
+    :root {
+        --gutter: 32px;
+        --tube-h: 220px;
+        --name-h: 72px;
+        --wall-h: 365px;
+        --wall-gutter: 40px;
+        --gauge-gap: 8px;
+        --group-gap: 16px;
+    }
 }
 
 /* ---------- 基礎 ---------- */
@@ -106,8 +155,8 @@ body {
     background: var(--bg);
     color: var(--ink);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: var(--fs-16);
+    line-height: 1.65;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -134,7 +183,7 @@ input {
 :focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 2px;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .sprite {
@@ -153,7 +202,7 @@ input {
 
 .skip-link {
     position: absolute;
-    left: var(--space-4);
+    left: var(--gutter);
     top: -100px;
     z-index: 20;
     padding: var(--space-3) var(--space-4);
@@ -165,13 +214,21 @@ input {
     top: var(--space-2);
 }
 
+/* 頁首、主內容、頁尾共用同一個容器：寬度固定、左右留白固定，左緣因此對齊 */
+.topbar-inner,
+.layout,
+.footer-inner {
+    width: min(var(--container), 100% - 2 * var(--gutter));
+    margin-inline: auto;
+}
+
 /* ---------- 頁首 ---------- */
 
 .topbar {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
     backdrop-filter: saturate(1.4) blur(12px);
     -webkit-backdrop-filter: saturate(1.4) blur(12px);
     border-bottom: 1px solid var(--line);
@@ -182,9 +239,7 @@ input {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: var(--space-2) var(--space-4);
+    padding-block: var(--space-2);
 }
 
 .brand {
@@ -194,14 +249,13 @@ input {
     min-height: 44px;
     color: var(--ink);
     font-weight: 700;
-    font-size: 17px;
-    letter-spacing: .02em;
+    font-size: var(--fs-18);
     text-decoration: none;
 }
 
 .brand-mark {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     color: var(--water);
 }
 
@@ -217,14 +271,14 @@ input {
     gap: var(--space-2);
     min-width: 44px;
     min-height: 44px;
-    padding: 0 var(--space-3);
-    background: var(--surface);
+    padding: 0 var(--space-4);
+    background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 999px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--fs-16);
     font-weight: 500;
-    transition: background-color .15s, border-color .15s;
+    transition: border-color .15s;
 }
 
 .icon-btn:hover {
@@ -272,37 +326,39 @@ input {
 
 .layout {
     display: grid;
-    gap: var(--space-5);
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: var(--space-5) var(--space-4) var(--space-7);
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
         "hero"
         "list"
         "side";
+    row-gap: var(--space-7);
+    padding-block: var(--space-5) var(--space-8);
 }
 
 .hero { grid-area: hero; }
 .list-section { grid-area: list; }
 .side { grid-area: side; }
 
+/* 桌面：12 欄格線，主欄 8 欄、側欄 4 欄 */
 @media (min-width: 1080px) {
     .layout {
-        grid-template-columns: minmax(0, 1fr) 320px;
-        /* 側欄跨兩列；多出的高度只給第二列，資料載入時主視覺不會被撐開 */
+        grid-template-columns: repeat(12, minmax(0, 1fr));
         grid-template-rows: auto 1fr;
-        grid-template-areas:
-            "hero side"
-            "list side";
+        grid-template-areas: none;
         column-gap: var(--space-6);
-        row-gap: var(--space-6);
-        padding-top: var(--space-6);
+        row-gap: var(--space-7);
+        padding-top: var(--space-7);
     }
 
+    .hero { grid-column: 1 / 9; grid-row: 1; }
+    .list-section { grid-column: 1 / 9; grid-row: 2; }
+
+    /* 側欄跨兩列；多出的高度只給第二列，資料載入時主視覺不會被撐開 */
     .side {
+        grid-column: 9 / 13;
+        grid-row: 1 / 3;
         position: sticky;
-        top: 84px;
+        top: 96px;
         align-self: start;
     }
 }
@@ -312,17 +368,16 @@ input {
 .data-status {
     display: flex;
     gap: var(--space-3);
-    margin-bottom: var(--space-5);
-    padding: var(--space-4);
+    margin-bottom: var(--space-6);
+    padding: var(--space-5);
     background: var(--critical-soft);
-    border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
-    border-radius: var(--radius-panel);
+    border-radius: 16px;
     color: var(--ink);
 }
 
 .data-status > svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     flex: none;
     margin-top: 2px;
     color: var(--critical-ink);
@@ -330,7 +385,7 @@ input {
 
 .data-status-title {
     font-weight: 700;
-    font-size: 17px;
+    font-size: var(--fs-18);
 }
 
 .data-status-body {
@@ -368,12 +423,12 @@ input {
     gap: var(--space-2);
     min-height: 44px;
     padding: 0 var(--space-4);
-    background: var(--surface);
+    background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 999px;
     color: var(--ink);
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--fs-16);
     text-decoration: none;
     cursor: pointer;
 }
@@ -389,39 +444,40 @@ input {
     color: var(--bg);
 }
 
-/* ---------- 一句話總結 ---------- */
-
-.summary {
-    margin-bottom: var(--space-5);
-}
+/* ---------- 主焦點：全台總蓄水 ---------- */
 
 .headline {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--space-1) var(--space-3);
-    font-weight: 700;
+    flex-direction: column;
+    gap: var(--space-1);
 }
 
 .headline-label {
-    font-size: 20px;
-    letter-spacing: .02em;
+    font-size: var(--fs-18);
+    font-weight: 700;
+    color: var(--ink-2);
 }
 
 .headline-value {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    min-height: 64px;
     font-family: var(--font-num);
-    font-weight: 600;
-    font-size: 56px;
     line-height: 1;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -.01em;
     color: var(--water);
-    min-width: 3.4ch;
 }
 
-.headline-value small {
-    font-size: .45em;
-    margin-left: 2px;
+.headline-number {
+    font-size: var(--fs-64);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.01em;
+}
+
+.headline-unit {
+    font-size: var(--fs-28);
+    font-weight: 600;
     color: var(--ink-2);
 }
 
@@ -430,15 +486,10 @@ input {
 }
 
 .verdict {
-    margin-top: var(--space-2);
-    font-size: 17px;
-    color: var(--ink);
-    min-height: 3.2em;
+    margin-top: var(--space-3);
+    font-size: var(--fs-18);
+    min-height: 3.3em;
     text-wrap: pretty;
-}
-
-@media (min-width: 720px) {
-    .verdict { min-height: 1.6em; }
 }
 
 .tone-low { color: var(--low-ink); }
@@ -448,10 +499,10 @@ input {
     display: flex;
     flex-wrap: wrap;
     gap: 0 var(--space-3);
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     color: var(--ink-2);
-    font-size: 13px;
-    min-height: 1.6em;
+    font-size: var(--fs-14);
+    min-height: 1.65em;
 }
 
 .freshness .is-stale {
@@ -474,24 +525,31 @@ input {
     50% { opacity: .55; }
 }
 
+@media (min-width: 720px) {
+    .headline-label { font-size: var(--fs-22); }
+    .headline-value { min-height: 96px; }
+    .headline-number { font-size: var(--fs-96); }
+    .headline-unit { font-size: var(--fs-36); }
+    .verdict { min-height: 1.65em; }
+}
+
 /* ---------- 水尺牆 ---------- */
 
 .wall {
-    padding: var(--space-4) var(--space-3) var(--space-3);
-    background: var(--surface);
-    border-radius: var(--radius-panel);
+    margin-top: var(--space-6);
 }
 
+/* 參考線數值放在右側，水柱本身從主欄左緣開始 */
 .wall-plot {
     position: relative;
-    padding-left: var(--wall-gutter);
+    padding-right: var(--wall-gutter);
 }
 
 .wall-guides {
     position: absolute;
     left: 0;
     right: 0;
-    top: 20px;
+    top: 24px;
     height: var(--tube-h);
     z-index: 1;
     pointer-events: none;
@@ -507,22 +565,21 @@ input {
 
 .wall-guide span {
     position: absolute;
-    left: 0;
+    right: 0;
     top: -8px;
+    padding-left: var(--space-1);
+    background: var(--bg);
     font-family: var(--font-num);
-    font-size: 11px;
+    font-size: var(--fs-12);
     line-height: 1;
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
-    padding-right: 4px;
-    background: var(--surface);
 }
 
 .wall-columns {
     position: relative;
     display: flex;
-    gap: 6px;
-    /* 水柱由 JavaScript 建立，先保留高度避免版面跳動 */
+    gap: var(--group-gap);
     min-height: var(--wall-h);
 }
 
@@ -539,7 +596,7 @@ input {
 
 .wall-group-columns {
     display: flex;
-    gap: 2px;
+    gap: var(--gauge-gap);
 }
 
 .wall-group-label {
@@ -547,7 +604,7 @@ input {
     padding-top: var(--space-1);
     border-top: 1px solid var(--line);
     color: var(--ink-2);
-    font-size: 12px;
+    font-size: var(--fs-14);
     text-align: center;
 }
 
@@ -560,20 +617,21 @@ input {
 }
 
 .gauge-value {
-    height: 20px;
+    height: 24px;
     font-family: var(--font-num);
     font-weight: 600;
-    font-size: 11px;
+    font-size: var(--fs-12);
     line-height: 16px;
-    letter-spacing: -.02em;
+    letter-spacing: -.03em;
     font-variant-numeric: tabular-nums;
     color: var(--ink-2);
+    white-space: nowrap;
 }
 
 .gauge-tube {
     position: relative;
     width: 100%;
-    max-width: 30px;
+    max-width: 32px;
     height: var(--tube-h);
     overflow: hidden;
     background: var(--track);
@@ -599,13 +657,13 @@ input {
 .gauge[data-level="critical"] .gauge-value { color: var(--critical-ink); }
 
 .gauge-name {
-    height: 56px;
+    height: var(--name-h);
     margin-top: var(--space-2);
     writing-mode: vertical-rl;
     text-orientation: upright;
-    font-size: 12px;
+    font-size: var(--fs-14);
     line-height: 1;
-    letter-spacing: .06em;
+    letter-spacing: .04em;
     color: var(--ink);
 }
 
@@ -622,15 +680,15 @@ body[data-state="unavailable"] .gauge-tube {
     display: none;
     position: absolute;
     left: 50%;
-    top: calc(20px + var(--tube-h) / 2);
+    top: calc(24px + var(--tube-h) / 2);
     z-index: 2;
     transform: translate(-50%, -50%);
     padding: var(--space-2) var(--space-4);
-    background: var(--surface);
+    background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 999px;
     color: var(--ink-2);
-    font-size: 14px;
+    font-size: var(--fs-16);
     white-space: nowrap;
 }
 
@@ -639,39 +697,28 @@ body[data-state="loading"] .wall-loading {
 }
 
 .wall-caption {
-    margin-top: var(--space-3);
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--line);
+    margin-top: var(--space-4);
     color: var(--ink-2);
-    font-size: 13px;
+    font-size: var(--fs-14);
 }
 
-.cap-low { color: var(--low-ink); font-weight: 600; }
-.cap-critical { color: var(--critical-ink); font-weight: 600; }
+.cap-low { color: var(--low-ink); font-weight: 600; white-space: nowrap; }
+.cap-critical { color: var(--critical-ink); font-weight: 600; white-space: nowrap; }
+
+/* 手機上水柱只有 14px 寬，三位數（100）水平壓縮，避免和相鄰數字黏在一起 */
+.gauge-value.is-wide {
+    transform: scaleX(.78);
+}
 
 @media (min-width: 720px) {
-    :root {
-        --tube-h: 220px;
-        --wall-h: 352px;
-        --wall-gutter: 38px;
+    .gauge-value {
+        font-size: var(--fs-14);
+        letter-spacing: 0;
     }
 
-    .wall {
-        padding: var(--space-5) var(--space-5) var(--space-4);
-    }
+    .gauge-value.is-wide { transform: none; }
 
-    .wall-columns { gap: 14px; }
-    .wall-group-columns { gap: 6px; }
-
-    .gauge-value { font-size: 14px; }
-    .wall-guide span { font-size: 12px; }
-
-    .gauge-name {
-        height: 68px;
-        font-size: 14px;
-    }
-
-    .wall-group-label { font-size: 13px; }
+    .gauge-name { font-size: var(--fs-16); }
 }
 
 /* ---------- 清單 ---------- */
@@ -681,13 +728,11 @@ body[data-state="loading"] .wall-loading {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-3);
+    gap: var(--space-4);
 }
 
 .list-header h2 {
-    font-size: 22px;
-    letter-spacing: .02em;
+    font-size: var(--fs-22);
 }
 
 .list-section:focus {
@@ -706,7 +751,7 @@ body[data-state="loading"] .wall-loading {
     padding: 2px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--surface);
+    background: var(--bg);
 }
 
 .segmented label {
@@ -725,10 +770,10 @@ body[data-state="loading"] .wall-loading {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-    padding: 0 14px;
+    padding: 0 var(--space-4);
     border-radius: 999px;
     color: var(--ink-2);
-    font-size: 14px;
+    font-size: var(--fs-16);
     font-weight: 500;
     white-space: nowrap;
 }
@@ -747,29 +792,28 @@ body[data-state="loading"] .wall-loading {
     display: flex;
     align-items: baseline;
     gap: var(--space-2);
-    margin: var(--space-5) 0 var(--space-2);
-    font-size: 15px;
-    color: var(--ink-2);
-}
-
-.region-heading:first-child {
-    margin-top: var(--space-2);
+    margin-top: var(--space-6);
+    padding-bottom: var(--space-2);
+    font-size: var(--fs-18);
 }
 
 .region-heading small {
     font-weight: 400;
     color: var(--ink-3);
-    font-size: 13px;
+    font-size: var(--fs-14);
 }
 
 .reservoir-list {
-    display: grid;
-    gap: var(--space-2);
+    margin-top: var(--space-4);
 }
 
+/* 清單是對照表：沒有卡片、沒有左右內距，每一列以細線分隔 */
 .row {
-    background: var(--surface);
-    border-radius: var(--radius-row);
+    border-top: 1px solid var(--line);
+}
+
+.row:last-child {
+    border-bottom: 1px solid var(--line);
 }
 
 .row summary {
@@ -782,10 +826,9 @@ body[data-state="loading"] .wall-loading {
     align-items: center;
     gap: var(--space-2) var(--space-3);
     min-height: 44px;
-    padding: var(--space-3) var(--space-4);
+    padding-block: var(--space-4);
     cursor: pointer;
     list-style: none;
-    border-radius: var(--radius-row);
 }
 
 .row summary::-webkit-details-marker {
@@ -807,13 +850,13 @@ body[data-state="loading"] .wall-loading {
 }
 
 .row-name strong {
-    font-size: 16px;
+    font-size: var(--fs-18);
     white-space: nowrap;
 }
 
 .row-county {
     color: var(--ink-3);
-    font-size: 13px;
+    font-size: var(--fs-14);
     white-space: nowrap;
 }
 
@@ -827,12 +870,12 @@ body[data-state="loading"] .wall-loading {
 
 .row-pct b {
     font-weight: 600;
-    font-size: 26px;
+    font-size: var(--fs-28);
 }
 
 .row-pct small {
-    margin-left: 1px;
-    font-size: 14px;
+    margin-left: 2px;
+    font-size: var(--fs-14);
     color: var(--ink-2);
 }
 
@@ -842,7 +885,7 @@ body[data-state="loading"] .wall-loading {
 .row-bar {
     grid-area: bar;
     position: relative;
-    height: 10px;
+    height: 12px;
     background: var(--track);
     border-radius: 999px;
     overflow: hidden;
@@ -866,7 +909,7 @@ body[data-state="loading"] .wall-loading {
     bottom: 0;
     left: calc(var(--at) * 100%);
     width: 1px;
-    background: var(--surface);
+    background: var(--bg);
 }
 
 .row summary > .pill {
@@ -877,9 +920,9 @@ body[data-state="loading"] .wall-loading {
 .pill {
     display: inline-flex;
     align-items: center;
-    padding: 1px 10px;
+    padding: 0 var(--space-2);
     border-radius: 999px;
-    font-size: 13px;
+    font-size: var(--fs-14);
     font-weight: 600;
     white-space: nowrap;
     color: var(--ink-2);
@@ -903,13 +946,12 @@ body[data-state="loading"] .wall-loading {
     align-items: center;
     gap: var(--space-2);
     color: var(--ink-2);
-    font-size: 13px;
 }
 
 .trend-value {
     font-family: var(--font-num);
     font-weight: 500;
-    font-size: 15px;
+    font-size: var(--fs-16);
     font-variant-numeric: tabular-nums;
 }
 
@@ -942,7 +984,7 @@ body[data-state="loading"] .wall-loading {
     align-items: center;
     gap: var(--space-2);
     font-family: var(--font-num);
-    font-size: 15px;
+    font-size: var(--fs-16);
     font-variant-numeric: tabular-nums;
     color: var(--ink-2);
 }
@@ -953,9 +995,9 @@ body[data-state="loading"] .wall-loading {
 
 .stale-tag {
     font-family: var(--font-sans);
-    font-size: 12px;
+    font-size: var(--fs-14);
     font-weight: 600;
-    padding: 0 6px;
+    padding: 0 var(--space-2);
     border: 1px solid currentColor;
     border-radius: 999px;
 }
@@ -975,20 +1017,18 @@ body[data-state="loading"] .wall-loading {
 .row-detail {
     display: grid;
     gap: var(--space-4);
-    margin: 0 var(--space-4);
-    padding: var(--space-4) 0;
-    border-top: 1px solid var(--line);
+    padding-bottom: var(--space-5);
 }
 
 .row-detail dl {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--space-3) var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-3) var(--space-5);
 }
 
 .row-detail dt {
     color: var(--ink-3);
-    font-size: 13px;
+    font-size: var(--fs-14);
 }
 
 .row-detail dd {
@@ -997,7 +1037,7 @@ body[data-state="loading"] .wall-loading {
 
 .detail-chart figcaption {
     color: var(--ink-3);
-    font-size: 13px;
+    font-size: var(--fs-14);
     margin-bottom: var(--space-2);
 }
 
@@ -1019,31 +1059,38 @@ body[data-state="loading"] .wall-loading {
     justify-content: space-between;
     margin-top: var(--space-1);
     color: var(--ink-2);
-    font-size: 12px;
+    font-size: var(--fs-14);
     font-variant-numeric: tabular-nums;
 }
 
 .row-skeleton {
-    height: 104px;
-    background: var(--surface);
-    border-radius: var(--radius-row);
+    height: 112px;
+    border-top: 1px solid var(--line);
+    background: linear-gradient(var(--surface-2), var(--surface-2)) 0 24px / 60% 24px no-repeat;
     animation: pulse 1.6s ease-in-out infinite;
 }
 
+/* 載入中清單先佔滿一個畫面，頁尾不會在資料到達時被推出視窗 */
+body[data-state="loading"] .reservoir-list {
+    min-height: 100vh;
+}
+
 .list-empty {
-    padding: var(--space-5);
-    background: var(--surface);
-    border-radius: var(--radius-row);
+    padding-block: var(--space-5);
+    border-top: 1px solid var(--line);
     color: var(--ink-2);
 }
 
-/* 寬螢幕：一列排成一行，像對照表 */
 @media (min-width: 720px) {
+    .list-header h2 { font-size: var(--fs-28); }
+
+    /* 寬螢幕：一列排成一行，像對照表 */
     .row summary {
-        grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 2fr) 86px 52px 116px 92px 18px;
+        grid-template-columns: minmax(128px, 1.3fr) minmax(96px, 2fr) 96px 56px 128px 112px 18px;
         grid-template-areas: "name bar pct pill trend time chevron";
-        padding: var(--space-3) var(--space-4);
-        min-height: 60px;
+        column-gap: var(--space-4);
+        min-height: 72px;
+        padding-block: var(--space-3);
     }
 
     .row summary > .pill { justify-self: center; }
@@ -1059,19 +1106,18 @@ body[data-state="loading"] .wall-loading {
 
 .side {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-6);
     align-content: start;
 }
 
 .panel {
-    padding: var(--space-5);
-    background: var(--surface);
-    border-radius: var(--radius-panel);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
 }
 
 .panel h2 {
-    font-size: 15px;
-    margin-bottom: var(--space-3);
+    font-size: var(--fs-18);
+    margin-bottom: var(--space-4);
 }
 
 .distribution-bar {
@@ -1085,7 +1131,7 @@ body[data-state="loading"] .wall-loading {
 }
 
 .distribution-bar span[data-level="full"] { background: var(--water); }
-.distribution-bar span[data-level="normal"] { background: color-mix(in srgb, var(--water) 55%, var(--surface)); }
+.distribution-bar span[data-level="normal"] { background: color-mix(in srgb, var(--water) 55%, var(--bg)); }
 .distribution-bar span[data-level="low"] { background: var(--low); }
 .distribution-bar span[data-level="critical"] { background: var(--critical); }
 
@@ -1103,7 +1149,7 @@ body[data-state="loading"] .wall-loading {
 
 .distribution-legend small {
     color: var(--ink-3);
-    font-size: 12px;
+    font-size: var(--fs-14);
 }
 
 .distribution-legend b {
@@ -1112,40 +1158,38 @@ body[data-state="loading"] .wall-loading {
 }
 
 .dot {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 3px;
     align-self: center;
 }
 
 [data-level="full"] > .dot { background: var(--water); }
-[data-level="normal"] > .dot { background: color-mix(in srgb, var(--water) 55%, var(--surface)); }
+[data-level="normal"] > .dot { background: color-mix(in srgb, var(--water) 55%, var(--bg)); }
 [data-level="low"] > .dot { background: var(--low); }
 [data-level="critical"] > .dot { background: var(--critical); }
 
 .totals {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
-    margin-top: var(--space-4);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--line);
+    gap: var(--space-4);
+    margin-top: var(--space-5);
 }
 
 .totals dt {
     color: var(--ink-3);
-    font-size: 12px;
+    font-size: var(--fs-14);
 }
 
 .totals dd {
+    font-size: var(--fs-18);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
 .watch-list {
     display: grid;
-    gap: var(--space-1);
-    min-height: 48px;
+    min-height: 56px;
 }
 
 .watch-list a {
@@ -1153,81 +1197,82 @@ body[data-state="loading"] .wall-loading {
     grid-template-columns: 1fr auto auto;
     align-items: center;
     gap: var(--space-3);
-    min-height: 48px;
-    margin: 0 calc(var(--space-2) * -1);
-    padding: var(--space-1) var(--space-2);
-    border-radius: 10px;
+    min-height: 56px;
     color: var(--ink);
     text-decoration: none;
 }
 
-.watch-list a:hover {
-    background: var(--surface-2);
+.watch-list a:hover .watch-name {
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 .watch-name {
     display: flex;
     flex-direction: column;
-    line-height: 1.3;
+    line-height: 1.35;
     font-weight: 600;
 }
 
 .watch-name small {
     color: var(--ink-3);
     font-weight: 400;
-    font-size: 12px;
+    font-size: var(--fs-14);
 }
 
 .watch-pct {
     font-family: var(--font-num);
     font-weight: 600;
-    font-size: 20px;
+    font-size: var(--fs-22);
     font-variant-numeric: tabular-nums;
 }
 
 .watch-pct small {
-    font-size: 12px;
+    font-size: var(--fs-14);
     color: var(--ink-2);
 }
 
 .watch-empty {
     display: flex;
     align-items: center;
-    min-height: 48px;
+    min-height: 56px;
     color: var(--ink-2);
-}
-
-.panel-notes {
-    background: transparent;
-    border: 1px solid var(--line);
-}
-
-.panel-notes p {
-    color: var(--ink-2);
-    font-size: 13px;
-    line-height: 1.7;
-}
-
-.panel-notes p + p {
-    margin-top: var(--space-2);
 }
 
 /* ---------- 頁尾 ---------- */
 
 .footer {
     border-top: 1px solid var(--line);
+    background: var(--surface-2);
 }
 
 .footer-inner {
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: var(--space-5) var(--space-4) var(--space-6);
+    padding-block: var(--space-6) var(--space-7);
     color: var(--ink-2);
-    font-size: 13px;
+    font-size: var(--fs-14);
 }
 
 .footer-inner p + p {
     margin-top: var(--space-1);
+}
+
+.footer-notes {
+    max-width: 720px;
+    margin-bottom: var(--space-5);
+}
+
+.footer-notes h2 {
+    margin-bottom: var(--space-2);
+    font-size: var(--fs-18);
+    color: var(--ink);
+}
+
+.footer-notes p {
+    font-size: var(--fs-16);
+}
+
+.footer-notes p + p {
+    margin-top: var(--space-2);
 }
 
 /* ---------- 動效偏好 ---------- */
