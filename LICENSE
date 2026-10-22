@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 Jiaquan (livejiaquan010313@gmail.com)
+Copyright (c) 2025 Lim Jia Quan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,9 +24,9 @@ SOFTWARE.
 
 ## 資料來源聲明
 
-本專案使用的水庫資料來源於：
-- 經濟部水利署開放資料平臺
-- API端點：https://fhy.wra.gov.tw/WraApi/v1/Reservoir/RealTimeInfo
+本專案顯示的水庫資料來自經濟部水利署水利資料開放平臺
+（https://opendata.wra.gov.tw/），依政府資料開放授權條款使用：
+- 水庫水情資料（逐時）
+- 水庫每日營運狀況
 
-本專案僅供學習研究使用，不代表官方立場。
-實際水情狀況請以水利署官方公告為準。
+本專案僅供參考，不代表官方立場。實際水情請以水利署公告為準。

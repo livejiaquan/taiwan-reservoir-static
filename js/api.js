@@ -19,8 +19,8 @@ class ReservoirAPI extends Utils.EventEmitter {
         
         // 快取配置
         this.cache = {
-            // v3 invalidates older browser caches that may contain simulated data.
-            key: 'reservoir_data_cache_v3',
+            // v4 adds 24-hour history; older caches lack it.
+            key: 'reservoir_data_cache_v4',
             duration: 5 * 60 * 1000, // 5分鐘
             data: null,
             timestamp: null
@@ -163,20 +163,27 @@ class ReservoirAPI extends Utils.EventEmitter {
         }
 
         const capacities = new Map();
+        const dailyRecords = new Map();
         for (const item of dailyData) {
             const stationNo = item.reservoiridentifier;
             const capacity = Number.parseFloat(item.capacity);
 
             if (this.stationMapping[stationNo] && Number.isFinite(capacity) && capacity > 0) {
                 capacities.set(stationNo, capacity);
+                dailyRecords.set(stationNo, item);
             }
         }
 
         // 開放資料會包含同一水庫多筆觀測，只保留最新一筆。
         const latestReadings = new Map();
+        const readingsByStation = new Map();
         for (const item of realtimeData) {
             const stationNo = item.reservoiridentifier;
             if (!this.stationMapping[stationNo]) continue;
+
+            const readings = readingsByStation.get(stationNo) || [];
+            readings.push(item);
+            readingsByStation.set(stationNo, readings);
 
             const current = latestReadings.get(stationNo);
             if (!current || item.observationtime > current.observationtime) {
@@ -200,6 +207,9 @@ class ReservoirAPI extends Utils.EventEmitter {
                     ? item.observationtime.replace('T', ' ').slice(0, 16)
                     : '--';
 
+                const history = this.buildHistory(readingsByStation.get(stationNo), effectiveCapacity);
+                const daily = dailyRecords.get(stationNo) || {};
+
                 reservoirs[stationInfo.name] = {
                     name: stationInfo.name,
                     effective_capacity: effectiveCapacity,
@@ -208,7 +218,13 @@ class ReservoirAPI extends Utils.EventEmitter {
                     county: stationInfo.county,
                     region: stationInfo.region,
                     update_time: updateTime,
-                    station_no: stationNo
+                    station_no: stationNo,
+                    history,
+                    change_24h: this.computeChange(history),
+                    water_level: this.parseOptionalNumber(item.waterlevel),
+                    full_water_level: this.parseOptionalNumber(daily.nwlmax),
+                    basin_rainfall: this.parseOptionalNumber(daily.basinrainfall),
+                    daily_date: typeof daily.datetime === 'string' ? daily.datetime.slice(0, 10) : null
                 };
                 
             } catch (error) {
@@ -217,6 +233,49 @@ class ReservoirAPI extends Utils.EventEmitter {
         }
 
         return reservoirs;
+    }
+
+    parseOptionalNumber(value) {
+        const number = Number.parseFloat(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    // 最近 24 小時的逐時蓄水率，依時間排序
+    buildHistory(readings = [], effectiveCapacity) {
+        const points = new Map();
+        for (const item of readings) {
+            const storage = Number.parseFloat(item.effectivewaterstoragecapacity);
+            const time = typeof item.observationtime === 'string'
+                ? item.observationtime.replace('T', ' ').slice(0, 16)
+                : '';
+            if (!Number.isFinite(storage) || storage < 0 || time.length !== 16) continue;
+            const percentage = Math.min(100, storage / effectiveCapacity * 100);
+            points.set(time, Math.round(percentage * 100) / 100);
+        }
+
+        const sorted = [...points.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+        if (sorted.length === 0) return [];
+        const latest = this.observationTimestamp(sorted[sorted.length - 1][0]);
+        return sorted
+            .filter(([time]) => latest - this.observationTimestamp(time) <= 24 * 60 * 60 * 1000)
+            .map(([time, percentage]) => ({ time, percentage }));
+    }
+
+    // 只有逐時資料至少橫跨 20 小時，才算得出可信的 24 小時變化
+    computeChange(history) {
+        if (history.length < 2) return null;
+        const first = history[0];
+        const last = history[history.length - 1];
+        const span = this.observationTimestamp(last.time) - this.observationTimestamp(first.time);
+        if (span < 20 * 60 * 60 * 1000) return null;
+        return Math.round((last.percentage - first.percentage) * 100) / 100;
+    }
+
+    observationTimestamp(time) {
+        const [datePart, clock] = time.split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute] = clock.split(':').map(Number);
+        return Date.UTC(year, month - 1, day, hour - 8, minute);
     }
 
     validateSnapshot(data, now = Date.now()) {

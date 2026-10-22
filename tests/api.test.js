@@ -154,3 +154,46 @@ test('duplicate station identifiers do not satisfy mapped coverage', () => {
 
     assert.throws(() => api.validateSnapshot(snapshot), /涵蓋不足/);
 });
+
+function hourly(stationNo, storages, endHour = 15) {
+    return storages.map((storage, index) => {
+        const time = new Date(Date.UTC(2026, 9, 22, endHour - (storages.length - 1 - index), 0));
+        return {
+            reservoiridentifier: stationNo,
+            observationtime: time.toISOString().slice(0, 19),
+            effectivewaterstoragecapacity: String(storage),
+            waterlevel: '242.6'
+        };
+    });
+}
+
+test('parsed reservoirs carry 24-hour history and change', () => {
+    const ReservoirAPI = loadReservoirAPI();
+    const api = new ReservoirAPI();
+    const storages = Array.from({ length: 24 }, (_, index) => 1000 - index * 10);
+    const reservoirs = api.parseOpenData(
+        hourly('10201', storages),
+        [{ reservoiridentifier: '10201', capacity: '2000', nwlmax: '245', basinrainfall: '4.6', datetime: '2026-10-21T00:00:00' }]
+    );
+    const shihmen = reservoirs['石門水庫'];
+
+    assert.equal(shihmen.percentage, 38.5);
+    assert.equal(shihmen.history.length, 24);
+    assert.equal(shihmen.history[0].time, '2026-10-21 16:00');
+    assert.equal(shihmen.change_24h, -11.5);
+    assert.equal(shihmen.water_level, 242.6);
+    assert.equal(shihmen.full_water_level, 245);
+    assert.equal(shihmen.basin_rainfall, 4.6);
+});
+
+test('24-hour change is withheld when hourly data spans too little time', () => {
+    const ReservoirAPI = loadReservoirAPI();
+    const api = new ReservoirAPI();
+    const reservoirs = api.parseOpenData(
+        hourly('10201', [1000, 990, 980]),
+        [{ reservoiridentifier: '10201', capacity: '2000' }]
+    );
+
+    assert.equal(reservoirs['石門水庫'].change_24h, null);
+    assert.equal(reservoirs['石門水庫'].full_water_level, null);
+});
