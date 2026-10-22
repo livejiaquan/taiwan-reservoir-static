@@ -263,7 +263,7 @@ class ReservoirApp extends Utils.EventEmitter {
         const { totalPercentage, verdict } = this.elements;
 
         if (reservoirs.length === 0) {
-            totalPercentage.innerHTML = '<span class="headline-empty">—</span>';
+            totalPercentage.innerHTML = '<span class="headline-number headline-empty">—</span>';
             verdict.textContent = this.state.status === 'loading'
                 ? '正在讀取水利署最新觀測資料'
                 : '資料無法驗證時，這裡不顯示數字。';
@@ -272,7 +272,8 @@ class ReservoirApp extends Utils.EventEmitter {
 
         const { percentage } = this.totals(reservoirs);
         const counts = this.countLevels(reservoirs);
-        totalPercentage.innerHTML = `${percentage.toFixed(1)}<small>%</small>`;
+        // 數字與單位分成兩個節點，數字本身才是頁面上最大的文字
+        totalPercentage.innerHTML = `<span class="headline-number">${percentage.toFixed(1)}</span><span class="headline-unit">%</span>`;
 
         const total = reservoirs.length;
         const critical = `<strong class="tone-critical">${counts.critical} 座低於三成</strong>`;
@@ -347,11 +348,13 @@ class ReservoirApp extends Utils.EventEmitter {
                 gauge.dataset.level = 'missing';
                 gauge.style.setProperty('--p', 0);
                 value.textContent = '—';
+                value.classList.remove('is-wide');
                 continue;
             }
             gauge.dataset.level = Utils.classify(reservoir.percentage).key;
             gauge.style.setProperty('--p', (reservoir.percentage / 100).toFixed(4));
             value.textContent = Utils.formatPercentage(reservoir.percentage, 0);
+            value.classList.toggle('is-wide', value.textContent.length > 2);
         }
 
         // 第一次有資料時直接畫出最終高度，下一幀才開啟過渡
@@ -451,22 +454,22 @@ class ReservoirApp extends Utils.EventEmitter {
 
     detailHTML(reservoir, observed, now) {
         const items = [
-            ['有效蓄水量', `${Utils.formatNumber(reservoir.effective_water_storage)} 萬 m³`],
-            ['有效容量', `${Utils.formatNumber(reservoir.effective_capacity)} 萬 m³`]
+            ['有效蓄水量', `${Utils.formatNumber(reservoir.effective_water_storage)} 萬&nbsp;m³`],
+            ['有效容量', `${Utils.formatNumber(reservoir.effective_capacity)} 萬&nbsp;m³`]
         ];
         if (Number.isFinite(reservoir.water_level)) {
-            let level = `${Utils.formatNumber(reservoir.water_level, 2)} m`;
+            let level = `${Utils.formatNumber(reservoir.water_level, 2)}&nbsp;m`;
             if (Number.isFinite(reservoir.full_water_level)) {
                 const gap = reservoir.full_water_level - reservoir.water_level;
                 level += gap > 0
-                    ? `，距滿水位 ${Utils.formatNumber(gap, 1)} m`
+                    ? `，距滿水位 ${Utils.formatNumber(gap, 1)}&nbsp;m`
                     : '，已達滿水位';
             }
             items.push(['水位', level]);
         }
         if (Number.isFinite(reservoir.basin_rainfall) && reservoir.daily_date) {
             const [, month, day] = reservoir.daily_date.split('-').map(Number);
-            items.push([`${month}/${day} 集水區雨量`, `${Utils.formatNumber(reservoir.basin_rainfall, 1)} mm`]);
+            items.push([`${month}/${day} 集水區雨量`, `${Utils.formatNumber(reservoir.basin_rainfall, 1)}&nbsp;mm`]);
         }
         if (Number.isFinite(observed)) {
             items.push(['觀測時間', `${Utils.formatObservation(observed, now)}（${Utils.formatRelative(observed, now)}）`]);

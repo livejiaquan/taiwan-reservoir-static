@@ -36,10 +36,10 @@
         })();
     </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://opendata.wra.gov.tw" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&display=swap&text=0123456789.%25%2B%E2%88%92-%3A%2F%20">
+    <!-- 數字字型自行託管（只含數字與符號，各約 4KB），不阻塞第一次繪製 -->
+    <link rel="preload" href="assets/fonts/barlow-semi-condensed-600.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="assets/fonts/barlow-semi-condensed-500.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
@@ -94,7 +94,7 @@
             <div class="summary" id="summary">
                 <h1 id="headline" class="headline">
                     <span class="headline-label">全台主要水庫總蓄水</span>
-                    <span class="headline-value" id="total-percentage"><span class="skeleton-text">00.0</span></span>
+                    <span class="headline-value" id="total-percentage"><span class="headline-number skeleton-text">00.0</span></span>
                 </h1>
                 <p class="verdict" id="verdict"><span class="skeleton-text">正在讀取水利署最新觀測資料</span></p>
                 <p class="freshness" id="freshness">
@@ -114,7 +114,7 @@
                     <p class="wall-loading" aria-hidden="true">正在讀取水利署資料</p>
                 </div>
                 <figcaption id="wall-caption" class="wall-caption">
-                    水柱高度＝蓄水率，由北到南排列。藍色表示五成以上，<span class="cap-low">琥珀色</span>為 30–50%，<span class="cap-critical">紅色</span>低於 30%。
+                    水柱高度＝蓄水率，由北到南排列；<span class="cap-low">琥珀色</span> 30–50%，<span class="cap-critical">紅色</span>低於 30%。
                 </figcaption>
             </figure>
         </section>
@@ -140,7 +140,7 @@
             <div class="reservoir-list" id="reservoir-rows" aria-busy="true"></div>
         </section>
 
-        <aside class="side" aria-label="總覽與資料說明">
+        <aside class="side" aria-label="蓄水總覽">
             <section class="panel" id="distribution-panel" aria-labelledby="distribution-title">
                 <h2 id="distribution-title">蓄水狀態分布</h2>
                 <div class="distribution-bar" id="distribution-bar" aria-hidden="true"></div>
@@ -163,17 +163,17 @@
                 </ul>
             </section>
 
-            <section class="panel panel-notes" aria-labelledby="about-title">
-                <h2 id="about-title">關於這些數字</h2>
-                <p>蓄水率＝有效蓄水量 ÷ 有效容量；總蓄水則是 20 座的蓄水量合計 ÷ 容量合計，所以大水庫的影響較大。蓄水量取自水利署「水庫水情資料」最新一筆逐時觀測，有效容量取自「水庫每日營運狀況」。</p>
-                <p>各水庫回報時間不同步，所以每一列都標出自己的觀測時間；超過 12 小時標示「較舊」。資料涵蓋不足、時間異常或超過 48 小時時，整頁不顯示數字。</p>
-                <p>頁面每 5 分鐘自動更新。本站僅供參考，水情與限水措施請以<a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署</a>公告為準。</p>
-            </section>
         </aside>
     </main>
 
     <footer class="footer">
         <div class="footer-inner">
+            <section class="footer-notes" aria-labelledby="about-title">
+                <h2 id="about-title">關於這些數字</h2>
+                <p>蓄水率＝有效蓄水量 ÷ 有效容量；總蓄水則是 20 座的蓄水量合計 ÷ 容量合計，所以大水庫的影響較大。蓄水量取自水利署「水庫水情資料」最新一筆逐時觀測，有效容量取自「水庫每日營運狀況」。</p>
+                <p>各水庫回報時間不同步，所以每一列都標出自己的觀測時間；超過 12 小時標示「較舊」。資料涵蓋不足、時間異常或超過 48 小時時，整頁不顯示數字。</p>
+                <p>頁面每 5 分鐘自動更新。本站僅供參考，水情與限水措施請以<a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署</a>公告為準。</p>
+            </section>
             <p>資料來源：<a href="https://opendata.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署水利資料開放平臺</a>，依政府資料開放授權條款使用。</p>
             <p>由 Lim Jia Quan 製作，<a href="https://github.com/livejiaquan/taiwan-reservoir-static" target="_blank" rel="noopener">原始碼</a>以 MIT 授權公開。</p>
         </div>
