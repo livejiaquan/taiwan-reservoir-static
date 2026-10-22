@@ -50,3 +50,12 @@ test('sparklines keep a minimum vertical span so noise is not exaggerated', () =
 test('HTML is escaped before insertion', () => {
     assert.equal(Utils.escapeHTML('<b>"x"</b>'), '&lt;b&gt;&quot;x&quot;&lt;/b&gt;');
 });
+
+test('displayed percentages never round across a level threshold', () => {
+    assert.equal(Utils.formatPercentage(89.96, 0), '90');
+    assert.equal(Utils.formatPercentage(29.6, 0), '29');
+    assert.equal(Utils.formatPercentage(29.96), '29.9');
+    assert.equal(Utils.formatPercentage(49.97), '49.9');
+    assert.equal(Utils.formatPercentage(79.99, 0), '79');
+    assert.equal(Utils.formatPercentage(90.04), '90.0');
+});
