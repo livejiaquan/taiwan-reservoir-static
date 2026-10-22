@@ -586,7 +586,11 @@ input {
     background: var(--water);
     transform-origin: bottom;
     transform: scaleY(var(--p));
-    transition: transform .7s var(--ease-out) calc(var(--i, 0) * 20ms);
+}
+
+/* 首次載入直接顯示最終水位；之後資料更新才用短過渡標示變化 */
+.wall.is-ready .gauge-fill {
+    transition: transform .3s var(--ease-out);
 }
 
 .gauge[data-level="low"] .gauge-fill { background: var(--low); }
@@ -611,6 +615,27 @@ body[data-state="loading"] .gauge-tube {
 
 body[data-state="unavailable"] .gauge-tube {
     opacity: .5;
+}
+
+/* 等待水利署回應時明確說明，避免空水柱被誤認為資料異常 */
+.wall-loading {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: calc(20px + var(--tube-h) / 2);
+    z-index: 2;
+    transform: translate(-50%, -50%);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-2);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+body[data-state="loading"] .wall-loading {
+    display: block;
 }
 
 .wall-caption {

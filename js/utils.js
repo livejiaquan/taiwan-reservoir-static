@@ -15,6 +15,16 @@
         return LEVELS.find(level => percentage >= level.min);
     }
 
+    // 四捨五入；若進位會跨過分級門檻（如 29.96 → 30.0 卻標「嚴重」），改為捨去
+    function formatPercentage(percentage, digits = 1) {
+        const factor = 10 ** digits;
+        let value = Math.round(percentage * factor) / factor;
+        if (classify(value).key !== classify(percentage).key) {
+            value = Math.floor(percentage * factor) / factor;
+        }
+        return value.toFixed(digits);
+    }
+
     // 水利署時間為台灣當地時間且不帶時區，如 "2026-10-22T15:00:00" 或 "2026-10-22 15:00"
     function parseTaiwanTime(text) {
         if (typeof text !== 'string') return null;
@@ -154,6 +164,7 @@
         HOUR,
         LEVELS,
         classify,
+        formatPercentage,
         parseTaiwanTime,
         formatObservation,
         formatRelative,

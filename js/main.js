@@ -318,8 +318,8 @@ class ReservoirApp extends Utils.EventEmitter {
         const groups = Object.keys(REGION_LABELS).map(region => {
             const columns = this.stations
                 .filter(station => station.region === region)
-                .map((station, index) => `
-                    <div class="gauge" data-station="${station.stationNo}" data-level="missing" style="--p: 0; --i: ${index}">
+                .map(station => `
+                    <div class="gauge" data-station="${station.stationNo}" data-level="missing" style="--p: 0">
                         <span class="gauge-value">—</span>
                         <span class="gauge-tube"><span class="gauge-fill"></span></span>
                         <span class="gauge-name">${Utils.escapeHTML(this.shortName(station.name))}</span>
@@ -351,8 +351,15 @@ class ReservoirApp extends Utils.EventEmitter {
             }
             gauge.dataset.level = Utils.classify(reservoir.percentage).key;
             gauge.style.setProperty('--p', (reservoir.percentage / 100).toFixed(4));
-            // 無條件捨去，避免 29.6% 顯示成「30」卻標成低於三成
-            value.textContent = Math.floor(reservoir.percentage);
+            value.textContent = Utils.formatPercentage(reservoir.percentage, 0);
+        }
+
+        // 第一次有資料時直接畫出最終高度，下一幀才開啟過渡
+        if (data.size > 0 && !this.wallReady) {
+            this.wallReady = true;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                document.getElementById('wall').classList.add('is-ready');
+            }));
         }
     }
 
@@ -432,7 +439,7 @@ class ReservoirApp extends Utils.EventEmitter {
                 <summary>
                     <span class="row-name"><strong>${name}</strong><span class="row-county">${Utils.escapeHTML(reservoir.county)}</span></span>
                     <span class="row-bar" aria-hidden="true"><span class="row-bar-fill" style="--p: ${(reservoir.percentage / 100).toFixed(4)}"></span><i style="--at: .3"></i><i style="--at: .5"></i><i style="--at: .8"></i></span>
-                    <span class="row-pct"><span class="visually-hidden">蓄水率</span><b>${reservoir.percentage.toFixed(1)}</b><small>%</small></span>
+                    <span class="row-pct"><span class="visually-hidden">蓄水率</span><b>${Utils.formatPercentage(reservoir.percentage)}</b><small>%</small></span>
                     <span class="pill" data-level="${level.key}">${level.label}</span>
                     <span class="row-trend">${this.trendHTML(reservoir)}</span>
                     <span class="row-time${stale ? ' is-stale' : ''}"><span class="visually-hidden">觀測時間</span>${timeText}${stale ? '<span class="stale-tag">較舊</span>' : ''}</span>
@@ -530,7 +537,7 @@ class ReservoirApp extends Utils.EventEmitter {
                     <li>
                         <a href="#r-${reservoir.station_no}" data-station="${reservoir.station_no}">
                             <span class="watch-name">${Utils.escapeHTML(reservoir.name)}<small>${Utils.escapeHTML(reservoir.county)}</small></span>
-                            <span class="watch-pct">${reservoir.percentage.toFixed(1)}<small>%</small></span>
+                            <span class="watch-pct">${Utils.formatPercentage(reservoir.percentage)}<small>%</small></span>
                             <span class="pill" data-level="${level.key}">${level.label}</span>
                         </a>
                     </li>`;
