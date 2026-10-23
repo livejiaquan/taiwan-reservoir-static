@@ -1,0 +1,17 @@
+{
+  "name": "taiwan-reservoir-static",
+  "version": "1.0.0",
+  "private": true,
+  "description": "台灣 20 座主要水庫的即時蓄水率儀表板，資料來自經濟部水利署開放資料；純靜態網站。",
+  "author": "Lim Jia Quan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/livejiaquan/taiwan-reservoir-static.git"
+  },
+  "homepage": "https://livejiaquan.github.io/taiwan-reservoir-static/",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test tests/"
+  }
+}
