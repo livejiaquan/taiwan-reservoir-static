@@ -204,15 +204,51 @@ input {
     padding: var(--page-margin) var(--page-margin) var(--space-6);
 }
 
-.page-header {
+/* 品牌列：標記 32px、與字標間距 10px；8 個站共用同一套結構，只換 icon 與強調色 */
+.site-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2) var(--space-4);
-    margin-bottom: var(--space-1);
+    margin-bottom: var(--space-4);
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.brand-mark {
+    display: block;
+    width: 32px;
+    height: 32px;
+    flex: none;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.brand-name {
+    font-size: var(--fs-16);
+    font-weight: 600;
+    letter-spacing: -.01em;
+}
+
+.brand-tagline {
+    font-size: var(--fs-12);
+    font-weight: 500;
+    color: var(--ink-muted);
 }
 
 .page-title {
+    margin-bottom: var(--space-1);
     font-family: var(--font-serif);
     font-size: var(--fs-34);
     font-weight: 700;
@@ -251,8 +287,8 @@ input {
 }
 
 .icon-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     flex: none;
 }
 
@@ -428,8 +464,8 @@ input {
 }
 
 .btn svg {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
 }
 
 .btn-primary {
@@ -1110,8 +1146,8 @@ body[data-state="loading"] .wall-loading {
 
 .row-chevron {
     grid-area: chevron;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     color: var(--ink-muted);
     transition: transform .2s var(--ease-out);
 }

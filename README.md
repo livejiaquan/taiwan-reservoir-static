@@ -65,7 +65,7 @@ css/main.css        設計 token（深淺色）與版面
 js/utils.js         事件、儲存、時間與數字格式、趨勢線等純函式
 js/api.js           水利署 API、資料合併與信任檢查
 js/main.js          畫面狀態與繪製
-assets/             favicon、OG 預覽圖
+assets/             品牌標記、Lucide 圖示原始檔、數字字型、favicon、OG 預覽圖
 tests/              node:test 測試
 docs/               使用者研究、設計研究、截圖
 ```
@@ -74,6 +74,8 @@ docs/               使用者研究、設計研究、截圖
 
 - [使用者研究](docs/ux-research.md)：persona、前三項任務、非功能需求、裝置評估
 - [設計研究](docs/design-research.md)：8 個同類產品比較、參考的前端設計、色彩與字體決策
+- [參考頁量測](docs/references/tokens.md)：照抄版面的參考頁截圖與 token
+- [圖示與品牌標記](docs/brand/icons.md)：Lucide 圖示清單與品牌標記規格
 
 部署方式見 [DEPLOY.md](DEPLOY.md)。
 
