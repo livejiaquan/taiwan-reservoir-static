@@ -39,7 +39,8 @@ class ReservoirApp extends Utils.EventEmitter {
             distributionLegend: document.getElementById('distribution-legend'),
             totalStorage: document.getElementById('total-storage'),
             totalCapacity: document.getElementById('total-capacity'),
-            watchList: document.getElementById('watch-list')
+            watchList: document.getElementById('watch-list'),
+            staleCount: document.getElementById('stale-count')
         };
 
         // 由北到南的固定順序與分區，來自 API 的站點對照表
@@ -89,13 +90,6 @@ class ReservoirApp extends Utils.EventEmitter {
             if (event.target.open) this.state.open.add(station);
             else this.state.open.delete(station);
         }, true);
-
-        this.elements.watchList.addEventListener('click', event => {
-            const link = event.target.closest('a[data-station]');
-            if (!link) return;
-            event.preventDefault();
-            this.revealReservoir(link.dataset.station);
-        });
 
         window.api.on('fetchStart', () => this.setLoading(true));
 
@@ -195,9 +189,8 @@ class ReservoirApp extends Utils.EventEmitter {
     // ---------- 主題 ----------
 
     currentTheme() {
-        const chosen = document.documentElement.dataset.theme;
-        if (chosen) return chosen;
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        // 與參考頁一致預設淺色；深色只由使用者切換
+        return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
     }
 
     toggleTheme() {
@@ -292,26 +285,38 @@ class ReservoirApp extends Utils.EventEmitter {
     }
 
     renderFreshness() {
-        const { observedAt, fetchedAt } = this.elements;
-        const times = this.reservoirs()
+        const { observedAt, fetchedAt, staleCount } = this.elements;
+        const reservoirs = this.reservoirs();
+        const times = reservoirs
             .map(reservoir => Utils.parseTaiwanTime(reservoir.update_time))
             .filter(Number.isFinite);
 
         if (times.length === 0) {
-            observedAt.textContent = this.state.status === 'loading' ? '觀測時間讀取中' : '沒有可用的觀測時間';
+            observedAt.textContent = this.state.status === 'loading' ? '讀取中' : '沒有可用的觀測時間';
             observedAt.classList.remove('is-stale');
-            fetchedAt.textContent = '';
+            fetchedAt.textContent = '—';
+            staleCount.textContent = '—';
+            staleCount.classList.remove('is-stale');
             return;
         }
 
         const now = Date.now();
         const latest = Math.max(...times);
         const stale = now - latest > STALE_PAGE_HOURS * Utils.HOUR;
-        observedAt.textContent = `水利署觀測至 ${Utils.formatObservation(latest, now)}${stale ? '，已超過 3 小時沒有新資料' : ''}`;
+        observedAt.textContent = `${Utils.formatObservation(latest, now)}${stale ? '，已超過 3 小時沒有新資料' : ''}`;
         observedAt.classList.toggle('is-stale', stale);
 
         const fetched = window.api.cache.timestamp || (this.state.lastUpdate && this.state.lastUpdate.getTime());
-        fetchedAt.textContent = fetched ? `${Utils.formatRelative(fetched, now)}取得` : '';
+        fetchedAt.textContent = fetched ? Utils.formatRelative(fetched, now) : '—';
+
+        const lagging = reservoirs.filter(reservoir => {
+            const observed = Utils.parseTaiwanTime(reservoir.update_time);
+            return Number.isFinite(observed) && now - observed > STALE_ROW_HOURS * Utils.HOUR;
+        });
+        staleCount.textContent = lagging.length === 0
+            ? '沒有，全部在 12 小時內'
+            : `${lagging.length} 座：${lagging.map(reservoir => this.shortName(reservoir.name)).join('、')}`;
+        staleCount.classList.toggle('is-stale', lagging.length > 0);
     }
 
     // 水尺牆的結構固定（20 根水柱），資料只更新高度，避免版面跳動
@@ -348,13 +353,11 @@ class ReservoirApp extends Utils.EventEmitter {
                 gauge.dataset.level = 'missing';
                 gauge.style.setProperty('--p', 0);
                 value.textContent = '—';
-                value.classList.remove('is-wide');
                 continue;
             }
             gauge.dataset.level = Utils.classify(reservoir.percentage).key;
             gauge.style.setProperty('--p', (reservoir.percentage / 100).toFixed(4));
             value.textContent = Utils.formatPercentage(reservoir.percentage, 0);
-            value.classList.toggle('is-wide', value.textContent.length > 2);
         }
 
         // 第一次有資料時直接畫出最終高度，下一幀才開啟過渡
@@ -529,39 +532,17 @@ class ReservoirApp extends Utils.EventEmitter {
         this.elements.totalStorage.textContent = `${Utils.formatNumber(storage / 10000, 2)} 億 m³`;
         this.elements.totalCapacity.textContent = `${Utils.formatNumber(capacity / 10000, 2)} 億 m³`;
 
-        const watch = reservoirs
-            .filter(reservoir => reservoir.percentage < 50)
-            .sort((a, b) => a.percentage - b.percentage);
-        this.elements.watchList.innerHTML = watch.length === 0
-            ? '<li class="watch-empty">目前沒有蓄水低於五成的水庫。</li>'
-            : watch.map(reservoir => {
-                const level = Utils.classify(reservoir.percentage);
-                return `
-                    <li>
-                        <a href="#r-${reservoir.station_no}" data-station="${reservoir.station_no}">
-                            <span class="watch-name">${Utils.escapeHTML(reservoir.name)}<small>${Utils.escapeHTML(reservoir.county)}</small></span>
-                            <span class="watch-pct">${Utils.formatPercentage(reservoir.percentage)}<small>%</small></span>
-                            <span class="pill" data-level="${level.key}">${level.label}</span>
-                        </a>
-                    </li>`;
-            }).join('');
-    }
-
-    // 從「需要留意」跳到清單中的水庫並展開
-    revealReservoir(stationNo) {
-        let row = document.getElementById(`r-${stationNo}`);
-        if (!row) {
-            this.state.region = 'all';
-            this.elements.regionFilter.querySelector('input[value="all"]').checked = true;
-            this.renderList();
-            row = document.getElementById(`r-${stationNo}`);
-        }
-        if (!row) return;
-        row.open = true;
-        this.state.open.add(stationNo);
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
-        row.querySelector('summary').focus({ preventScroll: true });
+        // 參考頁的「前 5 名」橫條圖：名稱靠右對齊、長條從同一條基線開始
+        const lowest = [...reservoirs].sort((a, b) => a.percentage - b.percentage).slice(0, 5);
+        this.elements.watchList.innerHTML = lowest.map(reservoir => {
+            const level = Utils.classify(reservoir.percentage);
+            return `
+                <li data-level="${level.key}">
+                    <span class="lowest-name">${Utils.escapeHTML(this.shortName(reservoir.name))}</span>
+                    <span class="lowest-bar"><span style="--p: ${(reservoir.percentage / 100).toFixed(4)}"></span></span>
+                    <span class="lowest-value">${Utils.formatPercentage(reservoir.percentage)}%<span class="visually-hidden">，${level.label}</span></span>
+                </li>`;
+        }).join('');
     }
 
     // ---------- 計時 ----------
