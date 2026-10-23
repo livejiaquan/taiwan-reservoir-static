@@ -64,7 +64,6 @@ class ReservoirAPI extends Utils.EventEmitter {
             if (age < this.cache.duration) {
                 this.cache.data = cached.data;
                 this.cache.timestamp = cached.timestamp;
-                console.log('已載入快取的水庫資料');
                 return true;
             }
         }
@@ -145,7 +144,6 @@ class ReservoirAPI extends Utils.EventEmitter {
                 
                 if (i < retries) {
                     const delay = this.requestConfig.retryDelay * (i + 1);
-                    console.log(`請求失敗，${delay}ms 後重試 (${i + 1}/${retries})...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     console.error('重試次數已用盡');
@@ -332,14 +330,12 @@ class ReservoirAPI extends Utils.EventEmitter {
             if (!forceRefresh) {
                 const cached = this.getCachedData();
                 if (cached) {
-                    console.log('使用快取的水庫資料');
                     this.emit('fetchSuccess', cached);
                     return cached;
                 }
             }
             
             // 同時取得即時蓄水量與有效容量
-            console.log('嘗試從水利署開放資料 API 獲取資料...');
             
             try {
                 const data = await this.withRetry(async () => {
@@ -359,7 +355,6 @@ class ReservoirAPI extends Utils.EventEmitter {
                     return parsedData;
                 });
 
-                console.log(`成功從水利署開放資料 API 獲取 ${Object.keys(data).length} 座水庫資料`);
                 this.saveCache(data);
                 this.emit('fetchSuccess', data);
                 return data;
@@ -434,7 +429,6 @@ class ReservoirAPI extends Utils.EventEmitter {
         Utils.LocalStorage.remove(this.cache.key);
         this.cache.data = null;
         this.cache.timestamp = null;
-        console.log('快取已清除');
     }
     
     // 檢查 API 狀態
