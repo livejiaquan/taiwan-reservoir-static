@@ -6,9 +6,8 @@
     <title>台灣水庫水情｜全台主要水庫即時蓄水率</title>
     <meta name="description" content="全台 20 座主要水庫的即時蓄水率、24 小時變化與觀測時間，資料直接來自經濟部水利署開放資料；無法驗證時不顯示推測值。">
     <meta name="author" content="Lim Jia Quan">
-    <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#EDF2F5" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#0B1824" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#F6F7F8">
 
     <meta property="og:title" content="台灣水庫水情">
     <meta property="og:description" content="全台 20 座主要水庫的即時蓄水率、24 小時變化與觀測時間，資料來自經濟部水利署。">
@@ -55,13 +54,10 @@
 
     <a class="skip-link" href="#reservoir-list">跳到水庫清單</a>
 
-    <header class="topbar">
-        <div class="topbar-inner">
-            <a class="brand" href="./" aria-label="台灣水庫水情 首頁">
-                <svg class="brand-mark" aria-hidden="true"><use href="#i-gauge"/></svg>
-                <span>台灣水庫水情</span>
-            </a>
-            <div class="topbar-actions">
+    <div class="page">
+        <header class="page-header">
+            <h1 class="page-title">台灣水庫水情</h1>
+            <div class="header-actions">
                 <button id="refresh-btn" class="icon-btn" type="button">
                     <svg aria-hidden="true"><use href="#i-refresh"/></svg>
                     <span class="icon-btn-label">重新整理</span>
@@ -71,113 +67,125 @@
                     <svg class="show-dark" aria-hidden="true"><use href="#i-sun"/></svg>
                 </button>
             </div>
+        </header>
+
+        <div id="data-status" class="data-status" data-state="unavailable" role="status" aria-live="polite">
+            <svg aria-hidden="true"><use href="#i-alert"/></svg>
+            <div>
+                <p class="data-status-title">目前無法確認官方資料</p>
+                <p class="data-status-body">本站不顯示模擬或推測的水情；請以水利署公告為準。</p>
+                <div class="data-status-actions">
+                    <button id="retry-btn" class="btn btn-primary" type="button">重新載入</button>
+                    <a class="btn" href="https://fhy.wra.gov.tw/fhyv2/monitor/reservoir" target="_blank" rel="noopener">
+                        前往水利署水庫水情
+                        <svg aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                </div>
+            </div>
         </div>
-    </header>
 
-    <main class="layout">
-        <section class="hero" aria-labelledby="headline">
-            <div id="data-status" class="data-status" data-state="unavailable" role="status" aria-live="polite">
-                <svg aria-hidden="true"><use href="#i-alert"/></svg>
-                <div>
-                    <p class="data-status-title">目前無法確認官方資料</p>
-                    <p class="data-status-body">本站不顯示模擬或推測的水情；請以水利署公告為準。</p>
-                    <div class="data-status-actions">
-                        <button id="retry-btn" class="btn btn-primary" type="button">重新載入</button>
-                        <a class="btn" href="https://fhy.wra.gov.tw/fhyv2/monitor/reservoir" target="_blank" rel="noopener">
-                            前往水利署水庫水情
-                            <svg aria-hidden="true"><use href="#i-external"/></svg>
-                        </a>
+        <main>
+            <div class="grid">
+                <section class="card card-hero" aria-labelledby="headline">
+                    <h2 class="card-title" id="headline">全台主要水庫總蓄水</h2>
+                    <p class="card-subtitle">20 座主要水庫，以有效容量加權</p>
+                    <div class="hero-figure">
+                        <p class="headline-value" id="total-percentage"><span class="headline-number skeleton-text">00.0</span></p>
+                        <p class="verdict" id="verdict"><span class="skeleton-text">正在讀取水利署最新觀測資料</span></p>
+                    </div>
+                    <figure class="wall" id="wall" aria-labelledby="wall-caption">
+                        <div class="wall-plot" role="img" aria-label="水尺牆：各水庫由北到南的蓄水率，詳細數字見下方清單" id="wall-plot">
+                            <div class="wall-guides" aria-hidden="true">
+                                <span class="wall-guide" style="--at: .8"><span>80%</span></span>
+                                <span class="wall-guide" style="--at: .5"><span>50%</span></span>
+                                <span class="wall-guide" style="--at: .3"><span>30%</span></span>
+                            </div>
+                            <div class="wall-columns" id="wall-columns"></div>
+                            <p class="wall-loading" aria-hidden="true">正在讀取水利署資料</p>
+                        </div>
+                        <figcaption id="wall-caption" class="wall-caption">
+                            水柱高度＝蓄水率，由北到南排列；<span class="cap-low">琥珀色</span> 30–50%，<span class="cap-critical">紅色</span>低於 30%。
+                        </figcaption>
+                    </figure>
+                </section>
+
+                <section class="card" id="distribution-panel" aria-labelledby="distribution-title">
+                    <h2 class="card-title" id="distribution-title">蓄水狀態分布</h2>
+                    <p class="card-subtitle">依蓄水率分成四級，單位為座</p>
+                    <div class="distribution-bar" id="distribution-bar" aria-hidden="true"></div>
+                    <ul class="distribution-legend" id="distribution-legend">
+                        <li data-level="full"><span class="dot"></span>充足<small>80% 以上</small><b>—</b></li>
+                        <li data-level="normal"><span class="dot"></span>正常<small>50–80%</small><b>—</b></li>
+                        <li data-level="low"><span class="dot"></span>偏低<small>30–50%</small><b>—</b></li>
+                        <li data-level="critical"><span class="dot"></span>嚴重<small>30% 以下</small><b>—</b></li>
+                    </ul>
+                </section>
+
+                <section class="card" aria-labelledby="watch-title">
+                    <h2 class="card-title" id="watch-title">蓄水率最低的 5 座</h2>
+                    <p class="card-subtitle">低於五成標為琥珀色，低於三成標為紅色</p>
+                    <ol class="lowest-list" id="watch-list">
+                        <li class="watch-empty">等待資料</li>
+                    </ol>
+                </section>
+
+                <section class="card" aria-labelledby="time-title">
+                    <h2 class="card-title" id="time-title">蓄水量與資料時間</h2>
+                    <p class="card-subtitle">各水庫回報時間不同步，超過 12 小時標示「較舊」</p>
+                    <dl class="facts">
+                        <div><dt>有效蓄水量合計</dt><dd id="total-storage">—</dd></div>
+                        <div><dt>有效容量合計</dt><dd id="total-capacity">—</dd></div>
+                        <div><dt>水利署最新觀測</dt><dd id="observed-at">讀取中</dd></div>
+                        <div><dt>本頁取得資料</dt><dd id="fetched-at">—</dd></div>
+                        <div class="facts-wide"><dt>回報較舊的水庫</dt><dd id="stale-count">—</dd></div>
+                    </dl>
+                </section>
+
+            </div>
+
+            <section class="card list-section" id="reservoir-list" aria-labelledby="list-title" tabindex="-1">
+                <div class="list-header">
+                    <div>
+                        <h2 class="card-title" id="list-title">各水庫</h2>
+                        <p class="card-subtitle">點一列看水位、雨量與 24 小時走勢</p>
+                    </div>
+                    <div class="controls">
+                        <fieldset class="segmented" id="region-filter">
+                            <legend class="visually-hidden">地區</legend>
+                            <label><input type="radio" name="region" value="all" checked><span>全部</span></label>
+                            <label><input type="radio" name="region" value="north"><span>北部</span></label>
+                            <label><input type="radio" name="region" value="central"><span>中部</span></label>
+                            <label><input type="radio" name="region" value="south"><span>南部</span></label>
+                        </fieldset>
+                        <fieldset class="segmented" id="sort-order">
+                            <legend class="visually-hidden">排序</legend>
+                            <label><input type="radio" name="sort" value="geo" checked><span>北到南</span></label>
+                            <label><input type="radio" name="sort" value="low"><span>低到高</span></label>
+                        </fieldset>
                     </div>
                 </div>
-            </div>
-
-            <div class="summary" id="summary">
-                <h1 id="headline" class="headline">
-                    <span class="headline-label">全台主要水庫總蓄水</span>
-                    <span class="headline-value" id="total-percentage"><span class="headline-number skeleton-text">00.0</span></span>
-                </h1>
-                <p class="verdict" id="verdict"><span class="skeleton-text">正在讀取水利署最新觀測資料</span></p>
-                <p class="freshness" id="freshness">
-                    <span id="observed-at">觀測時間讀取中</span>
-                    <span id="fetched-at" class="freshness-fetched"></span>
-                </p>
-            </div>
-
-            <figure class="wall" id="wall" aria-labelledby="wall-caption">
-                <div class="wall-plot" role="img" aria-label="水尺牆：各水庫由北到南的蓄水率，詳細數字見下方清單" id="wall-plot">
-                    <div class="wall-guides" aria-hidden="true">
-                        <span class="wall-guide" style="--at: .8"><span>80%</span></span>
-                        <span class="wall-guide" style="--at: .5"><span>50%</span></span>
-                        <span class="wall-guide" style="--at: .3"><span>30%</span></span>
-                    </div>
-                    <div class="wall-columns" id="wall-columns"></div>
-                    <p class="wall-loading" aria-hidden="true">正在讀取水利署資料</p>
+                <div class="list-columns" aria-hidden="true">
+                    <span class="col-name">水庫</span>
+                    <span class="col-pct">蓄水率</span>
+                    <span class="col-pill">狀態</span>
+                    <span class="col-trend">24 小時</span>
+                    <span class="col-time">觀測時間</span>
                 </div>
-                <figcaption id="wall-caption" class="wall-caption">
-                    水柱高度＝蓄水率，由北到南排列；<span class="cap-low">琥珀色</span> 30–50%，<span class="cap-critical">紅色</span>低於 30%。
-                </figcaption>
-            </figure>
-        </section>
-
-        <section class="list-section" id="reservoir-list" aria-labelledby="list-title" tabindex="-1">
-            <div class="list-header">
-                <h2 id="list-title">各水庫</h2>
-                <div class="controls">
-                    <fieldset class="segmented" id="region-filter">
-                        <legend class="visually-hidden">地區</legend>
-                        <label><input type="radio" name="region" value="all" checked><span>全部</span></label>
-                        <label><input type="radio" name="region" value="north"><span>北部</span></label>
-                        <label><input type="radio" name="region" value="central"><span>中部</span></label>
-                        <label><input type="radio" name="region" value="south"><span>南部</span></label>
-                    </fieldset>
-                    <fieldset class="segmented" id="sort-order">
-                        <legend class="visually-hidden">排序</legend>
-                        <label><input type="radio" name="sort" value="geo" checked><span>北到南</span></label>
-                        <label><input type="radio" name="sort" value="low"><span>低到高</span></label>
-                    </fieldset>
-                </div>
-            </div>
-            <div class="reservoir-list" id="reservoir-rows" aria-busy="true"></div>
-        </section>
-
-        <aside class="side" aria-label="蓄水總覽">
-            <section class="panel" id="distribution-panel" aria-labelledby="distribution-title">
-                <h2 id="distribution-title">蓄水狀態分布</h2>
-                <div class="distribution-bar" id="distribution-bar" aria-hidden="true"></div>
-                <ul class="distribution-legend" id="distribution-legend">
-                    <li data-level="full"><span class="dot"></span>充足<small>80% 以上</small><b>—</b></li>
-                    <li data-level="normal"><span class="dot"></span>正常<small>50–80%</small><b>—</b></li>
-                    <li data-level="low"><span class="dot"></span>偏低<small>30–50%</small><b>—</b></li>
-                    <li data-level="critical"><span class="dot"></span>嚴重<small>30% 以下</small><b>—</b></li>
-                </ul>
-                <dl class="totals" id="totals">
-                    <div><dt>有效蓄水量合計</dt><dd id="total-storage">—</dd></div>
-                    <div><dt>有效容量合計</dt><dd id="total-capacity">—</dd></div>
-                </dl>
+                <div class="reservoir-list" id="reservoir-rows" aria-busy="true"></div>
             </section>
+        </main>
 
-            <section class="panel" aria-labelledby="watch-title">
-                <h2 id="watch-title">需要留意</h2>
-                <ul class="watch-list" id="watch-list">
-                    <li class="watch-empty">等待資料</li>
-                </ul>
-            </section>
-
+        <aside class="note" aria-labelledby="about-title">
+            <h2 id="about-title">關於這些數字</h2>
+            <p>蓄水率＝有效蓄水量 ÷ 有效容量；總蓄水則是 20 座的蓄水量合計 ÷ 容量合計，所以大水庫的影響較大。蓄水量取自水利署「水庫水情資料」最新一筆逐時觀測，有效容量取自「水庫每日營運狀況」。</p>
+            <p>各水庫回報時間不同步，所以每一列都標出自己的觀測時間；超過 12 小時標示「較舊」。資料涵蓋不足、時間異常或超過 48 小時時，整頁不顯示數字。</p>
+            <p>頁面每 5 分鐘自動更新。本站僅供參考，水情與限水措施請以<a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署</a>公告為準。</p>
         </aside>
-    </main>
 
-    <footer class="footer">
-        <div class="footer-inner">
-            <section class="footer-notes" aria-labelledby="about-title">
-                <h2 id="about-title">關於這些數字</h2>
-                <p>蓄水率＝有效蓄水量 ÷ 有效容量；總蓄水則是 20 座的蓄水量合計 ÷ 容量合計，所以大水庫的影響較大。蓄水量取自水利署「水庫水情資料」最新一筆逐時觀測，有效容量取自「水庫每日營運狀況」。</p>
-                <p>各水庫回報時間不同步，所以每一列都標出自己的觀測時間；超過 12 小時標示「較舊」。資料涵蓋不足、時間異常或超過 48 小時時，整頁不顯示數字。</p>
-                <p>頁面每 5 分鐘自動更新。本站僅供參考，水情與限水措施請以<a href="https://www.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署</a>公告為準。</p>
-            </section>
-            <p>資料來源：<a href="https://opendata.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署水利資料開放平臺</a>，依政府資料開放授權條款使用。</p>
-            <p>由 Lim Jia Quan 製作，<a href="https://github.com/livejiaquan/taiwan-reservoir-static" target="_blank" rel="noopener">原始碼</a>以 MIT 授權公開。</p>
-        </div>
-    </footer>
+        <footer class="page-footer">
+            <p>資料來源：<a href="https://opendata.wra.gov.tw/" target="_blank" rel="noopener">經濟部水利署水利資料開放平臺</a>，依政府資料開放授權條款使用。由 Lim Jia Quan 製作，<a href="https://github.com/livejiaquan/taiwan-reservoir-static" target="_blank" rel="noopener">原始碼</a>以 MIT 授權公開。</p>
+        </footer>
+    </div>
 
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>

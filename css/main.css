@@ -1,9 +1,11 @@
-/* 台灣水庫水情：設計 token 與版面
+/* 台灣水庫水情
  *
- * 字級只用一組階梯：12 / 14 / 16 / 18 / 22 / 28 / 36 / 64 / 96。
- * 12px 只給圖表標註與座標軸。間距只用 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64；
- * 水尺牆內 2px 的水柱間隙屬於圖形本身，不是版面間距。
- * 主欄所有區塊貼齊同一條左緣，不用帶內距的卡片。
+ * 版面照抄 Observable Framework 的 dashboard 範例（docs/references/tokens.md）：
+ * 頁面左右 32px、不設最大寬度；4 欄格線、間距 16px；白色卡片、1px 細框、圓角 12px、
+ * 內距 16px、無陰影；襯線頁面標題，無襯線卡片標題與副標。
+ *
+ * 字級階梯：12 / 14 / 16 / 28 / 34 / 72 / 96。比參考頁的 13–15px 內文大一階，
+ * 以符合本站內文 ≥ 16px、次要說明 ≥ 14px 的門檻；12px 只用於圖表標註。
  */
 
 /* Barlow Semi Condensed，SIL OFL 1.1（assets/fonts/OFL.txt）；只含數字、%、+、−、:、/ */
@@ -25,16 +27,18 @@
     unicode-range: U+20, U+25, U+2B, U+2D-3A, U+2212;
 }
 
+/* 預設淺色（與參考頁一致）；深色只由右上角按鈕切換 */
 :root {
-    --bg: #FFFFFF;
-    --surface: #FFFFFF;
-    --surface-2: #F2F6F9;
     --ink: #0F2333;
-    --ink-2: #46596A;
-    --ink-3: #586B7D;
-    --line: #DCE4EA;
+    --bg: color-mix(in srgb, var(--ink) 4%, #FFFFFF);
+    --card: #FFFFFF;
+    --ink-muted: color-mix(in srgb, var(--ink) 66%, #FFFFFF);
+    --line: color-mix(in srgb, var(--ink) 14%, #FFFFFF);
+    --line-strong: color-mix(in srgb, var(--ink) 30%, #FFFFFF);
     --track: #DCE6ED;
+    --tint: #F2F6F9;
     --water: #2B79B0;
+    --water-light: #8EBEDD;
     --low: #B26B00;
     --low-ink: #8A4F00;
     --low-soft: #FFF2DC;
@@ -44,17 +48,16 @@
     --accent: #1F5F8F;
     --focus: #1C6DD0;
 
-    --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", system-ui, sans-serif;
+    --font-serif: "Songti TC", "Noto Serif TC", "Source Han Serif TC", "PMingLiU", serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
     --font-num: "Barlow Semi Condensed", "Arial Narrow", var(--font-sans);
 
     --fs-12: 12px;
     --fs-14: 14px;
     --fs-16: 16px;
-    --fs-18: 18px;
-    --fs-22: 22px;
     --fs-28: 28px;
-    --fs-36: 36px;
-    --fs-64: 64px;
+    --fs-34: 34px;
+    --fs-72: 72px;
     --fs-96: 96px;
 
     --space-1: 4px;
@@ -63,57 +66,36 @@
     --space-4: 16px;
     --space-5: 24px;
     --space-6: 32px;
-    --space-7: 48px;
-    --space-8: 64px;
 
-    --gutter: 16px;
-    --container: 1240px;
+    --page-margin: 32px;
+    --gap: 16px;
+    --radius: 12px;
     --ease-out: cubic-bezier(.2, .7, .2, 1);
 
     /* 水尺牆尺寸；--wall-h 先保留整面牆的高度，避免水柱建立時版面跳動 */
     --tube-h: 168px;
-    --name-h: 64px;
-    --wall-h: 304px;
-    --wall-gutter: 32px;
-    --gauge-gap: 2px;
+    --value-h: 0px;
+    --name-h: 52px;
+    --name-size: var(--fs-12);
+    --wall-h: 264px;
+    --wall-gutter: 28px;
+    --gauge-gap: 1px;
     --group-gap: 8px;
 
     color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-        --bg: #0B1824;
-        --surface: #112334;
-        --surface-2: #12263A;
-        --ink: #E4ECF2;
-        --ink-2: #A6B8C7;
-        --ink-3: #8DA0B1;
-        --line: #213749;
-        --track: #1A3246;
-        --water: #4FA3DC;
-        --low: #F2A33A;
-        --low-ink: #F6B860;
-        --low-soft: #3A2A12;
-        --critical: #FF7070;
-        --critical-ink: #FF8C8C;
-        --critical-soft: #3D1B20;
-        --accent: #7CC0F0;
-        --focus: #7CC0F0;
-        color-scheme: dark;
-    }
-}
-
 :root[data-theme="dark"] {
-    --bg: #0B1824;
-    --surface: #112334;
-    --surface-2: #12263A;
     --ink: #E4ECF2;
-    --ink-2: #A6B8C7;
-    --ink-3: #8DA0B1;
+    --bg: #0B1824;
+    --card: #112334;
+    --ink-muted: #A6B8C7;
     --line: #213749;
+    --line-strong: #34506A;
     --track: #1A3246;
+    --tint: #12263A;
     --water: #4FA3DC;
+    --water-light: #2C5E83;
     --low: #F2A33A;
     --low-ink: #F6B860;
     --low-soft: #3A2A12;
@@ -127,12 +109,13 @@
 
 @media (min-width: 720px) {
     :root {
-        --gutter: 32px;
         --tube-h: 220px;
-        --name-h: 72px;
-        --wall-h: 365px;
+        --value-h: 24px;
+        --name-h: 68px;
+        --name-size: var(--fs-16);
+        --wall-h: 359px;
         --wall-gutter: 40px;
-        --gauge-gap: 8px;
+        --gauge-gap: 6px;
         --group-gap: 16px;
     }
 }
@@ -147,7 +130,7 @@
 
 html {
     -webkit-text-size-adjust: 100%;
-    scroll-padding-top: 80px;
+    background: var(--bg);
 }
 
 body {
@@ -156,15 +139,16 @@ body {
     color: var(--ink);
     font-family: var(--font-sans);
     font-size: var(--fs-16);
-    line-height: 1.65;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, p, dl, dd, figure, ul {
+h1, h2, h3, p, dl, dd, figure, ul, ol {
     margin: 0;
 }
 
-ul {
+ul,
+ol {
     padding: 0;
     list-style: none;
 }
@@ -202,11 +186,11 @@ input {
 
 .skip-link {
     position: absolute;
-    left: var(--gutter);
+    left: var(--page-margin);
     top: -100px;
     z-index: 20;
     padding: var(--space-3) var(--space-4);
-    background: var(--surface);
+    background: var(--card);
     border-radius: 8px;
 }
 
@@ -214,52 +198,29 @@ input {
     top: var(--space-2);
 }
 
-/* 頁首、主內容、頁尾共用同一個容器：寬度固定、左右留白固定，左緣因此對齊 */
-.topbar-inner,
-.layout,
-.footer-inner {
-    width: min(var(--container), 100% - 2 * var(--gutter));
-    margin-inline: auto;
+/* ---------- 頁面骨架 ---------- */
+
+.page {
+    padding: var(--page-margin) var(--page-margin) var(--space-6);
 }
 
-/* ---------- 頁首 ---------- */
-
-.topbar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: color-mix(in srgb, var(--bg) 90%, transparent);
-    backdrop-filter: saturate(1.4) blur(12px);
-    -webkit-backdrop-filter: saturate(1.4) blur(12px);
-    border-bottom: 1px solid var(--line);
-}
-
-.topbar-inner {
+.page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3);
-    padding-block: var(--space-2);
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-1);
 }
 
-.brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: 44px;
-    color: var(--ink);
+.page-title {
+    font-family: var(--font-serif);
+    font-size: var(--fs-34);
     font-weight: 700;
-    font-size: var(--fs-18);
-    text-decoration: none;
+    line-height: 1.15;
+    color: var(--ink);
 }
 
-.brand-mark {
-    width: 24px;
-    height: 24px;
-    color: var(--water);
-}
-
-.topbar-actions {
+.header-actions {
     display: flex;
     gap: var(--space-2);
 }
@@ -272,7 +233,7 @@ input {
     min-width: 44px;
     min-height: 44px;
     padding: 0 var(--space-4);
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--line);
     border-radius: 999px;
     cursor: pointer;
@@ -282,7 +243,7 @@ input {
 }
 
 .icon-btn:hover {
-    border-color: var(--ink-3);
+    border-color: var(--line-strong);
 }
 
 .icon-btn:disabled {
@@ -295,13 +256,36 @@ input {
     flex: none;
 }
 
+/* 手機只顯示圖示，名稱保留給螢幕閱讀器，按鈕才能和標題排在同一行 */
 .icon-btn-label {
-    min-width: 4em;
-    text-align: left;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+    .icon-btn-label {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip-path: none;
+        min-width: 4em;
+        text-align: left;
+    }
 }
 
 .icon-btn.icon-only {
     padding: 0;
+}
+
+@media (max-width: 719px) {
+    #refresh-btn {
+        padding: 0;
+    }
 }
 
 .icon-btn.is-loading svg {
@@ -313,53 +297,64 @@ input {
 }
 
 .show-dark { display: none; }
-
 :root[data-theme="dark"] .show-dark { display: block; }
 :root[data-theme="dark"] .show-light { display: none; }
 
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .show-dark { display: block; }
-    :root:not([data-theme="light"]) .show-light { display: none; }
-}
+/* ---------- 格線與卡片 ---------- */
 
-/* ---------- 版面 ---------- */
-
-.layout {
+.grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-        "hero"
-        "list"
-        "side";
-    row-gap: var(--space-7);
-    padding-block: var(--space-5) var(--space-8);
+    gap: var(--gap);
+    margin-block: var(--gap);
 }
 
-.hero { grid-area: hero; }
-.list-section { grid-area: list; }
-.side { grid-area: side; }
+.card {
+    min-width: 0;
+    padding: var(--space-4);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
 
-/* 桌面：12 欄格線，主欄 8 欄、側欄 4 欄 */
-@media (min-width: 1080px) {
-    .layout {
-        grid-template-columns: repeat(12, minmax(0, 1fr));
-        grid-template-rows: auto 1fr;
-        grid-template-areas: none;
-        column-gap: var(--space-6);
-        row-gap: var(--space-7);
-        padding-top: var(--space-7);
+.card-title {
+    font-size: var(--fs-16);
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--ink);
+}
+
+.card-subtitle {
+    margin-top: var(--space-1);
+    font-size: var(--fs-14);
+    line-height: 1.15;
+    color: var(--ink-muted);
+}
+
+/* 平板：兩欄，大卡獨佔一列 */
+@media (min-width: 720px) {
+    .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .hero { grid-column: 1 / 9; grid-row: 1; }
-    .list-section { grid-column: 1 / 9; grid-row: 2; }
+    .card-hero {
+        grid-column: 1 / -1;
+    }
+}
 
-    /* 側欄跨兩列；多出的高度只給第二列，資料載入時主視覺不會被撐開 */
-    .side {
-        grid-column: 9 / 13;
-        grid-row: 1 / 3;
-        position: sticky;
-        top: 96px;
-        align-self: start;
+/* 桌面：照抄參考頁的 4 欄、大卡跨 2 欄 × 3 列、右側 3 張卡各跨 2 欄 */
+@media (min-width: 1080px) {
+    .grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-rows: 1fr;
+    }
+
+    .grid > .card {
+        grid-column: span 2;
+    }
+
+    .card-hero {
+        grid-row: span 3;
     }
 }
 
@@ -368,10 +363,11 @@ input {
 .data-status {
     display: flex;
     gap: var(--space-3);
-    margin-bottom: var(--space-6);
-    padding: var(--space-5);
+    margin-top: var(--gap);
+    padding: var(--space-4);
     background: var(--critical-soft);
-    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
+    border-radius: var(--radius);
     color: var(--ink);
 }
 
@@ -379,18 +375,16 @@ input {
     width: 24px;
     height: 24px;
     flex: none;
-    margin-top: 2px;
     color: var(--critical-ink);
 }
 
 .data-status-title {
-    font-weight: 700;
-    font-size: var(--fs-18);
+    font-weight: 600;
 }
 
 .data-status-body {
     margin-top: var(--space-1);
-    color: var(--ink-2);
+    color: var(--ink-muted);
 }
 
 .data-status-actions {
@@ -423,7 +417,7 @@ input {
     gap: var(--space-2);
     min-height: 44px;
     padding: 0 var(--space-4);
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--line);
     border-radius: 999px;
     color: var(--ink);
@@ -441,35 +435,29 @@ input {
 .btn-primary {
     background: var(--ink);
     border-color: var(--ink);
-    color: var(--bg);
+    color: var(--card);
 }
 
-/* ---------- 主焦點：全台總蓄水 ---------- */
+/* ---------- 大卡：總蓄水率（參考頁大卡內置中的大字） ---------- */
 
-.headline {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.headline-label {
-    font-size: var(--fs-18);
-    font-weight: 700;
-    color: var(--ink-2);
+.hero-figure {
+    margin-top: var(--space-4);
+    text-align: center;
 }
 
 .headline-value {
     display: flex;
+    justify-content: center;
     align-items: baseline;
     gap: var(--space-1);
-    min-height: 64px;
+    min-height: 72px;
     font-family: var(--font-num);
     line-height: 1;
     color: var(--water);
 }
 
 .headline-number {
-    font-size: var(--fs-64);
+    font-size: var(--fs-72);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     letter-spacing: -.01em;
@@ -478,41 +466,21 @@ input {
 .headline-unit {
     font-size: var(--fs-28);
     font-weight: 600;
-    color: var(--ink-2);
+    color: var(--ink-muted);
 }
 
 .headline-empty {
-    color: var(--ink-3);
+    color: var(--ink-muted);
 }
 
 .verdict {
-    margin-top: var(--space-3);
-    font-size: var(--fs-18);
-    min-height: 3.3em;
-    text-wrap: pretty;
+    margin-top: var(--space-2);
+    min-height: 3.2em;
+    text-wrap: balance;
 }
 
-.tone-low { color: var(--low-ink); }
-.tone-critical { color: var(--critical-ink); }
-
-.freshness {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 var(--space-3);
-    margin-top: var(--space-1);
-    color: var(--ink-2);
-    font-size: var(--fs-14);
-    min-height: 1.65em;
-}
-
-.freshness .is-stale {
-    color: var(--low-ink);
-    font-weight: 600;
-}
-
-.freshness-fetched {
-    color: var(--ink-3);
-}
+.tone-low { color: var(--low-ink); white-space: nowrap; }
+.tone-critical { color: var(--critical-ink); white-space: nowrap; }
 
 .skeleton-text {
     color: transparent;
@@ -526,20 +494,18 @@ input {
 }
 
 @media (min-width: 720px) {
-    .headline-label { font-size: var(--fs-22); }
     .headline-value { min-height: 96px; }
     .headline-number { font-size: var(--fs-96); }
-    .headline-unit { font-size: var(--fs-36); }
-    .verdict { min-height: 1.65em; }
+    .verdict { min-height: 1.6em; }
 }
 
 /* ---------- 水尺牆 ---------- */
 
 .wall {
-    margin-top: var(--space-6);
+    margin-top: var(--space-4);
 }
 
-/* 參考線數值放在右側，水柱本身從主欄左緣開始 */
+/* 參考線數值放在右側，水柱從卡片內容左緣開始 */
 .wall-plot {
     position: relative;
     padding-right: var(--wall-gutter);
@@ -549,7 +515,7 @@ input {
     position: absolute;
     left: 0;
     right: 0;
-    top: 24px;
+    top: var(--value-h);
     height: var(--tube-h);
     z-index: 1;
     pointer-events: none;
@@ -568,11 +534,11 @@ input {
     right: 0;
     top: -8px;
     padding-left: var(--space-1);
-    background: var(--bg);
+    background: var(--card);
     font-family: var(--font-num);
     font-size: var(--fs-12);
     line-height: 1;
-    color: var(--ink-3);
+    color: var(--ink-muted);
     font-variant-numeric: tabular-nums;
 }
 
@@ -603,7 +569,7 @@ input {
     margin-top: var(--space-2);
     padding-top: var(--space-1);
     border-top: 1px solid var(--line);
-    color: var(--ink-2);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
     text-align: center;
 }
@@ -616,15 +582,17 @@ input {
     align-items: center;
 }
 
+/* 手機上水柱只有約 12px 寬，數字會擠成一串；只在寬螢幕顯示，數值改看右側卡與清單 */
 .gauge-value {
-    height: 24px;
+    display: none;
+    height: var(--value-h);
     font-family: var(--font-num);
     font-weight: 600;
     font-size: var(--fs-12);
     line-height: 16px;
-    letter-spacing: -.03em;
+    letter-spacing: -.04em;
     font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
+    color: var(--ink-muted);
     white-space: nowrap;
 }
 
@@ -661,9 +629,9 @@ input {
     margin-top: var(--space-2);
     writing-mode: vertical-rl;
     text-orientation: upright;
-    font-size: var(--fs-14);
+    font-size: var(--name-size);
     line-height: 1;
-    letter-spacing: .04em;
+    letter-spacing: .02em;
     color: var(--ink);
 }
 
@@ -680,15 +648,14 @@ body[data-state="unavailable"] .gauge-tube {
     display: none;
     position: absolute;
     left: 50%;
-    top: calc(24px + var(--tube-h) / 2);
+    top: calc(var(--value-h) + var(--tube-h) / 2);
     z-index: 2;
     transform: translate(-50%, -50%);
     padding: var(--space-2) var(--space-4);
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--line);
     border-radius: 999px;
-    color: var(--ink-2);
-    font-size: var(--fs-16);
+    color: var(--ink-muted);
     white-space: nowrap;
 }
 
@@ -697,31 +664,183 @@ body[data-state="loading"] .wall-loading {
 }
 
 .wall-caption {
-    margin-top: var(--space-4);
-    color: var(--ink-2);
+    margin-top: var(--space-3);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
 }
 
 .cap-low { color: var(--low-ink); font-weight: 600; white-space: nowrap; }
 .cap-critical { color: var(--critical-ink); font-weight: 600; white-space: nowrap; }
 
-/* 手機上水柱只有 14px 寬，三位數（100）水平壓縮，避免和相鄰數字黏在一起 */
-.gauge-value.is-wide {
-    transform: scaleX(.78);
-}
-
 @media (min-width: 720px) {
     .gauge-value {
+        display: block;
         font-size: var(--fs-14);
         letter-spacing: 0;
     }
-
-    .gauge-value.is-wide { transform: none; }
-
-    .gauge-name { font-size: var(--fs-16); }
 }
 
-/* ---------- 清單 ---------- */
+/* ---------- 右側卡 1：狀態分布 ---------- */
+
+.distribution-bar {
+    display: flex;
+    gap: 2px;
+    height: 24px;
+    margin-top: var(--space-4);
+    background: var(--track);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.distribution-bar span[data-level="full"] { background: var(--water); }
+.distribution-bar span[data-level="normal"] { background: var(--water-light); }
+.distribution-bar span[data-level="low"] { background: var(--low); }
+.distribution-bar span[data-level="critical"] { background: var(--critical); }
+
+.distribution-legend {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+    margin-top: var(--space-4);
+}
+
+@media (min-width: 720px) {
+    .distribution-legend {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.distribution-legend li {
+    display: grid;
+    grid-template-columns: 12px auto 1fr auto;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.distribution-legend small {
+    color: var(--ink-muted);
+    font-size: var(--fs-14);
+    white-space: nowrap;
+}
+
+.distribution-legend b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    align-self: center;
+}
+
+[data-level="full"] > .dot { background: var(--water); }
+[data-level="normal"] > .dot { background: var(--water-light); }
+[data-level="low"] > .dot { background: var(--low); }
+[data-level="critical"] > .dot { background: var(--critical); }
+
+/* ---------- 右側卡 2：蓄水率最低的 5 座（參考頁的 Top 5 橫條圖） ---------- */
+
+/* 先保留 5 列的高度（5 × 26px ＋ 4 × 2px），資料到達時卡片不會長高 */
+.lowest-list {
+    display: grid;
+    align-content: start;
+    gap: 2px;
+    min-height: 138px;
+    margin-top: var(--space-4);
+}
+
+.lowest-list li {
+    display: grid;
+    grid-template-columns: 5em minmax(0, 1fr) 4.5em;
+    align-items: center;
+    gap: var(--space-2);
+    height: 26px;
+}
+
+.lowest-name {
+    text-align: right;
+    font-size: var(--fs-14);
+    white-space: nowrap;
+}
+
+.lowest-bar {
+    position: relative;
+    height: 20px;
+    background: var(--track);
+}
+
+.lowest-bar span {
+    position: absolute;
+    inset: 0;
+    background: var(--water);
+    transform-origin: left;
+    transform: scaleX(var(--p));
+}
+
+.lowest-list li[data-level="low"] .lowest-bar span { background: var(--low); }
+.lowest-list li[data-level="critical"] .lowest-bar span { background: var(--critical); }
+
+.lowest-value {
+    font-family: var(--font-num);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.lowest-list li[data-level="low"] .lowest-value { color: var(--low-ink); }
+.lowest-list li[data-level="critical"] .lowest-value { color: var(--critical-ink); }
+
+.watch-empty {
+    display: flex;
+    align-items: center;
+    min-height: 28px;
+    color: var(--ink-muted);
+}
+
+/* ---------- 右側卡 3：蓄水量與資料時間 ---------- */
+
+.facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.facts dt {
+    color: var(--ink-muted);
+    font-size: var(--fs-14);
+}
+
+.facts dd {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.facts-wide {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+    .facts {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .facts-wide {
+        grid-column: span 2;
+    }
+}
+
+.facts .is-stale {
+    color: var(--low-ink);
+}
+
+/* ---------- 各水庫（參考頁下方的整寬表格卡） ---------- */
+
+.list-section:focus {
+    outline: none;
+}
 
 .list-header {
     display: flex;
@@ -729,14 +848,6 @@ body[data-state="loading"] .wall-loading {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-}
-
-.list-header h2 {
-    font-size: var(--fs-22);
-}
-
-.list-section:focus {
-    outline: none;
 }
 
 .controls {
@@ -751,7 +862,7 @@ body[data-state="loading"] .wall-loading {
     padding: 2px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--bg);
+    background: var(--card);
 }
 
 .segmented label {
@@ -772,15 +883,14 @@ body[data-state="loading"] .wall-loading {
     min-height: 44px;
     padding: 0 var(--space-4);
     border-radius: 999px;
-    color: var(--ink-2);
-    font-size: var(--fs-16);
+    color: var(--ink-muted);
     font-weight: 500;
     white-space: nowrap;
 }
 
 .segmented input:checked + span {
     background: var(--ink);
-    color: var(--bg);
+    color: var(--card);
 }
 
 .segmented input:focus-visible + span {
@@ -788,31 +898,31 @@ body[data-state="loading"] .wall-loading {
     outline-offset: 1px;
 }
 
+/* 表頭列：只有寬螢幕顯示，和每一列共用同一組欄寬 */
+.list-columns {
+    display: none;
+}
+
 .region-heading {
     display: flex;
     align-items: baseline;
     gap: var(--space-2);
-    margin-top: var(--space-6);
-    padding-bottom: var(--space-2);
-    font-size: var(--fs-18);
+    padding-block: var(--space-4) var(--space-2);
+    border-bottom: 1px solid var(--line-strong);
+    font-size: var(--fs-16);
 }
 
 .region-heading small {
     font-weight: 400;
-    color: var(--ink-3);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
 }
 
 .reservoir-list {
-    margin-top: var(--space-4);
+    margin-top: var(--space-2);
 }
 
-/* 清單是對照表：沒有卡片、沒有左右內距，每一列以細線分隔 */
 .row {
-    border-top: 1px solid var(--line);
-}
-
-.row:last-child {
     border-bottom: 1px solid var(--line);
 }
 
@@ -826,7 +936,7 @@ body[data-state="loading"] .wall-loading {
     align-items: center;
     gap: var(--space-2) var(--space-3);
     min-height: 44px;
-    padding-block: var(--space-4);
+    padding-block: var(--space-3);
     cursor: pointer;
     list-style: none;
 }
@@ -850,12 +960,12 @@ body[data-state="loading"] .wall-loading {
 }
 
 .row-name strong {
-    font-size: var(--fs-18);
+    font-weight: 600;
     white-space: nowrap;
 }
 
 .row-county {
-    color: var(--ink-3);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
     white-space: nowrap;
 }
@@ -876,7 +986,7 @@ body[data-state="loading"] .wall-loading {
 .row-pct small {
     margin-left: 2px;
     font-size: var(--fs-14);
-    color: var(--ink-2);
+    color: var(--ink-muted);
 }
 
 .row[data-level="low"] .row-pct b { color: var(--low-ink); }
@@ -887,7 +997,6 @@ body[data-state="loading"] .wall-loading {
     position: relative;
     height: 12px;
     background: var(--track);
-    border-radius: 999px;
     overflow: hidden;
 }
 
@@ -895,7 +1004,6 @@ body[data-state="loading"] .wall-loading {
     position: absolute;
     inset: 0;
     background: var(--water);
-    border-radius: inherit;
     transform-origin: left;
     transform: scaleX(var(--p));
 }
@@ -909,7 +1017,7 @@ body[data-state="loading"] .wall-loading {
     bottom: 0;
     left: calc(var(--at) * 100%);
     width: 1px;
-    background: var(--bg);
+    background: var(--card);
 }
 
 .row summary > .pill {
@@ -925,8 +1033,8 @@ body[data-state="loading"] .wall-loading {
     font-size: var(--fs-14);
     font-weight: 600;
     white-space: nowrap;
-    color: var(--ink-2);
-    background: var(--surface-2);
+    color: var(--ink-muted);
+    background: var(--tint);
 }
 
 .pill[data-level="low"] {
@@ -945,13 +1053,12 @@ body[data-state="loading"] .wall-loading {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    color: var(--ink-2);
+    color: var(--ink-muted);
 }
 
 .trend-value {
     font-family: var(--font-num);
     font-weight: 500;
-    font-size: var(--fs-16);
     font-variant-numeric: tabular-nums;
 }
 
@@ -965,7 +1072,7 @@ body[data-state="loading"] .wall-loading {
 .spark polyline,
 .detail-chart polyline {
     fill: none;
-    stroke: var(--ink-3);
+    stroke: var(--ink-muted);
     stroke-width: 1.5;
     stroke-linejoin: round;
     stroke-linecap: round;
@@ -984,9 +1091,8 @@ body[data-state="loading"] .wall-loading {
     align-items: center;
     gap: var(--space-2);
     font-family: var(--font-num);
-    font-size: var(--fs-16);
     font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
+    color: var(--ink-muted);
 }
 
 .row-time.is-stale {
@@ -1006,7 +1112,7 @@ body[data-state="loading"] .wall-loading {
     grid-area: chevron;
     width: 18px;
     height: 18px;
-    color: var(--ink-3);
+    color: var(--ink-muted);
     transition: transform .2s var(--ease-out);
 }
 
@@ -1017,7 +1123,7 @@ body[data-state="loading"] .wall-loading {
 .row-detail {
     display: grid;
     gap: var(--space-4);
-    padding-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
 }
 
 .row-detail dl {
@@ -1027,7 +1133,7 @@ body[data-state="loading"] .wall-loading {
 }
 
 .row-detail dt {
-    color: var(--ink-3);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
 }
 
@@ -1036,7 +1142,7 @@ body[data-state="loading"] .wall-loading {
 }
 
 .detail-chart figcaption {
-    color: var(--ink-3);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
     margin-bottom: var(--space-2);
 }
@@ -1045,8 +1151,8 @@ body[data-state="loading"] .wall-loading {
     display: block;
     width: 100%;
     height: 64px;
-    background: var(--surface-2);
-    border-radius: 8px;
+    background: var(--tint);
+    border-radius: 4px;
 }
 
 .detail-chart polyline {
@@ -1058,15 +1164,15 @@ body[data-state="loading"] .wall-loading {
     display: flex;
     justify-content: space-between;
     margin-top: var(--space-1);
-    color: var(--ink-2);
+    color: var(--ink-muted);
     font-size: var(--fs-14);
     font-variant-numeric: tabular-nums;
 }
 
 .row-skeleton {
-    height: 112px;
-    border-top: 1px solid var(--line);
-    background: linear-gradient(var(--surface-2), var(--surface-2)) 0 24px / 60% 24px no-repeat;
+    height: 104px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(var(--tint), var(--tint)) 0 24px / 60% 24px no-repeat;
     animation: pulse 1.6s ease-in-out infinite;
 }
 
@@ -1076,21 +1182,42 @@ body[data-state="loading"] .reservoir-list {
 }
 
 .list-empty {
-    padding-block: var(--space-5);
-    border-top: 1px solid var(--line);
-    color: var(--ink-2);
+    padding-block: var(--space-4);
+    color: var(--ink-muted);
 }
 
 @media (min-width: 720px) {
-    .list-header h2 { font-size: var(--fs-28); }
-
-    /* 寬螢幕：一列排成一行，像對照表 */
+    /* 寬螢幕：一列排成一行，像表格 */
+    .list-columns,
     .row summary {
+        display: grid;
         grid-template-columns: minmax(128px, 1.3fr) minmax(96px, 2fr) 96px 56px 128px 112px 18px;
         grid-template-areas: "name bar pct pill trend time chevron";
         column-gap: var(--space-4);
-        min-height: 72px;
-        padding-block: var(--space-3);
+    }
+
+    .list-columns {
+        margin-top: var(--space-4);
+        padding-block: var(--space-1);
+        border-bottom: 1px solid var(--line-strong);
+        color: var(--ink-muted);
+        font-size: var(--fs-14);
+        font-weight: 600;
+    }
+
+    .col-name { grid-area: name; }
+    .col-pct { grid-column: bar / pct; text-align: right; }
+    .col-pill { grid-area: pill; text-align: center; }
+    .col-trend { grid-area: trend; }
+    .col-time { grid-area: time; text-align: right; }
+
+    .reservoir-list {
+        margin-top: 0;
+    }
+
+    .row summary {
+        min-height: 60px;
+        padding-block: var(--space-2);
     }
 
     .row summary > .pill { justify-self: center; }
@@ -1098,181 +1225,36 @@ body[data-state="loading"] .reservoir-list {
     .row-name {
         flex-direction: column;
         gap: 0;
-        line-height: 1.35;
+        line-height: 1.3;
     }
 }
 
-/* ---------- 側欄 ---------- */
+/* ---------- 說明區塊與頁尾 ---------- */
 
-.side {
-    display: grid;
-    gap: var(--space-6);
-    align-content: start;
+.note {
+    max-width: 640px;
+    margin-top: var(--gap);
+    padding: var(--space-4) var(--space-6);
+    background: var(--card);
+    border-left: 1px solid var(--line-strong);
+    border-radius: 0 4px 4px 0;
 }
 
-.panel {
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--line);
-}
-
-.panel h2 {
-    font-size: var(--fs-18);
-    margin-bottom: var(--space-4);
-}
-
-.distribution-bar {
-    display: flex;
-    gap: 2px;
-    height: 12px;
-    margin-bottom: var(--space-4);
-    background: var(--track);
-    border-radius: 999px;
-    overflow: hidden;
-}
-
-.distribution-bar span[data-level="full"] { background: var(--water); }
-.distribution-bar span[data-level="normal"] { background: color-mix(in srgb, var(--water) 55%, var(--bg)); }
-.distribution-bar span[data-level="low"] { background: var(--low); }
-.distribution-bar span[data-level="critical"] { background: var(--critical); }
-
-.distribution-legend {
-    display: grid;
-    gap: var(--space-2);
-}
-
-.distribution-legend li {
-    display: grid;
-    grid-template-columns: 12px auto 1fr auto;
-    align-items: baseline;
-    gap: var(--space-2);
-}
-
-.distribution-legend small {
-    color: var(--ink-3);
-    font-size: var(--fs-14);
-}
-
-.distribution-legend b {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    align-self: center;
-}
-
-[data-level="full"] > .dot { background: var(--water); }
-[data-level="normal"] > .dot { background: color-mix(in srgb, var(--water) 55%, var(--bg)); }
-[data-level="low"] > .dot { background: var(--low); }
-[data-level="critical"] > .dot { background: var(--critical); }
-
-.totals {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-    margin-top: var(--space-5);
-}
-
-.totals dt {
-    color: var(--ink-3);
-    font-size: var(--fs-14);
-}
-
-.totals dd {
-    font-size: var(--fs-18);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.watch-list {
-    display: grid;
-    min-height: 56px;
-}
-
-.watch-list a {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
-    gap: var(--space-3);
-    min-height: 56px;
-    color: var(--ink);
-    text-decoration: none;
-}
-
-.watch-list a:hover .watch-name {
-    text-decoration: underline;
-    text-underline-offset: 4px;
-}
-
-.watch-name {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.35;
-    font-weight: 600;
-}
-
-.watch-name small {
-    color: var(--ink-3);
-    font-weight: 400;
-    font-size: var(--fs-14);
-}
-
-.watch-pct {
-    font-family: var(--font-num);
-    font-weight: 600;
-    font-size: var(--fs-22);
-    font-variant-numeric: tabular-nums;
-}
-
-.watch-pct small {
-    font-size: var(--fs-14);
-    color: var(--ink-2);
-}
-
-.watch-empty {
-    display: flex;
-    align-items: center;
-    min-height: 56px;
-    color: var(--ink-2);
-}
-
-/* ---------- 頁尾 ---------- */
-
-.footer {
-    border-top: 1px solid var(--line);
-    background: var(--surface-2);
-}
-
-.footer-inner {
-    padding-block: var(--space-6) var(--space-7);
-    color: var(--ink-2);
-    font-size: var(--fs-14);
-}
-
-.footer-inner p + p {
-    margin-top: var(--space-1);
-}
-
-.footer-notes {
-    max-width: 720px;
-    margin-bottom: var(--space-5);
-}
-
-.footer-notes h2 {
+.note h2 {
     margin-bottom: var(--space-2);
-    font-size: var(--fs-18);
-    color: var(--ink);
-}
-
-.footer-notes p {
     font-size: var(--fs-16);
+    font-weight: 600;
+    color: var(--ink-muted);
 }
 
-.footer-notes p + p {
+.note p + p {
     margin-top: var(--space-2);
+}
+
+.page-footer {
+    margin-top: 160px;
+    color: var(--ink-muted);
+    font-size: var(--fs-14);
 }
 
 /* ---------- 動效偏好 ---------- */
