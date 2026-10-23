@@ -1,6 +1,0 @@
-$ grep -rn "github.com" index.html css/ js/ assets/
-assets/fonts/OFL.txt:1:Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)
-（共 1 筆）
-
-$ grep -rn "github.com" index.html css/ js/ assets/ --exclude=OFL.txt --exclude=LICENSE
-（共 0 筆）
