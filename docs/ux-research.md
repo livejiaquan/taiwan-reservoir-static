@@ -63,7 +63,7 @@
 | 效能 | 首次載入不阻塞渲染；移除 Chart.js 與圖示字型等大型相依；Lighthouse Performance ≥ 90 | Lighthouse（行動裝置設定） |
 | 無障礙 | WCAG 2.1 AA 對比；觸控目標 ≥ 44px；鍵盤可操作、焦點可見；狀態不只靠顏色；尊重 `prefers-reduced-motion` | Lighthouse Accessibility ≥ 90、手動檢查 |
 | 響應式 | 390px 手機與 1440px 桌面都要好看；不能有水平捲動與版面跳動（CLS < 0.1） | 截圖、Lighthouse CLS |
-| 主題 | 跟隨系統深淺色，也可手動切換並記住選擇 | 截圖 |
+| 主題 | 預設淺色，可手動切換深色並記住選擇 | 截圖 |
 | 部署 | 維持純靜態、無建置步驟，GitHub Pages 直接從 `main` 根目錄發布 | 線上網址 |
 | 隱私 | 不收集個資；只用 localStorage 存 5 分鐘快取與主題偏好 | 程式碼審查 |
 
